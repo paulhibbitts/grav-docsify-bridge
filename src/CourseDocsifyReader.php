@@ -163,7 +163,7 @@ class CourseDocsifyReader
         }
         $site->courseFolder = $folder;
         $site->coursePage = $this->pageFromNote('course', '', 'course.md', $course);
-        // the course's footer, kept here (it isn't shown in Docsify)
+        // the course's footer when it only credits Grav, kept here (it isn't shown in Docsify)
         if (isset($where['footer']) && is_array($where['footer'])) {
             $site->courseFooter = $this->pageFromNote('footer', 'footer', 'default.md', $where['footer']);
         }

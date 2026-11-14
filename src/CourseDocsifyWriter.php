@@ -3,7 +3,7 @@ namespace OPG;
 
 // Writes an Open Course Space course as a Docsify course, laid out like the Docsify Open Course Starter Kit and shown
 // like the course in Grav: home.md (with the course's header image and name), a page per module and menu page,
-// images/, _sidebar.md (modules and LMS links) and _navbar.md. Hidden notes keep what's needed to go back
+// images/, _sidebar.md (modules and LMS links), _navbar.md and any _footer.md. Hidden notes keep what's needed to go back
 // to the same Grav pages (see CourseDocsifyReader).
 class CourseDocsifyWriter
 {
@@ -77,8 +77,18 @@ class CourseDocsifyWriter
             file_put_contents($this->out . '/_navbar.md', implode("\n", $lines));
         }
         $this->writeSidebar($site, $sidebarGroups);
-        // (the course's footer only says the site was built with Grav, so it isn't shown: it's kept in the home
-        // page's note, see courseNote())
+        // the course's footer, unless it only credits Grav (then it's kept in the home page's note, see courseNote())
+        if ($site->courseFooter !== null && !self::isGravCredit($site->courseFooter)) {
+            $footer = trim($this->convert($this->withImagesFolder($site->courseFooter), $this->course, '_footer.md'));
+            $this->writeFile('_footer.md', implode("\n", [$this->note($site->courseFooter), '', $footer]));
+        }
+    }
+
+    // A footer that says the site was built with Grav (as the skeletons' footers do: they link to getgrav.org), which
+    // isn't true of the Docsify copy
+    private static function isGravCredit(Page $footer): bool
+    {
+        return str_contains(strtolower($footer->body), 'getgrav.org');
     }
 
     // A module's page, as Open Course Space shows it: the module's title as its heading, then its header image (with
@@ -210,7 +220,7 @@ class CourseDocsifyWriter
             }
             $note['headerimage'] = array_merge(['images' => $sources], self::pageText($site->headerImage));
         }
-        if ($site->courseFooter !== null) {
+        if ($site->courseFooter !== null && self::isGravCredit($site->courseFooter)) {
             $note['footer'] = self::pageText($site->courseFooter);
         }
         return $note;

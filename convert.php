@@ -507,6 +507,11 @@ if ($repo !== null) {
     }
     $tips[] = 'to use your Grav site\'s favicon, copy it from user/themes/mytheme/images/favicon/ into the Docsify site and add '
         . '&loadFavicon= with its file name (such as favicon.png) to the Docsify-This link';
+    // a course footer that's more than a Grav credit (such as a licence) is kept as _footer.md
+    $footers = array_merge(glob($work . '/out/_footer.md'), glob($work . '/out/*/_footer.md'));
+    if (count($footers) > 0) {
+        $tips[] = 'to show the course footer (_footer.md), add &loadFooter=_footer.md to the Docsify-This link';
+    }
 }
 
 if ($repo !== null && $course === null) {
