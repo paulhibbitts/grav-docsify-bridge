@@ -25,7 +25,8 @@ class Embeds
 
     public static function toDocsify(string $markdown): string
     {
-        // Grav's summary break (=== on a line of its own, as in a week's page) isn't shown: kept in a hidden note
+        // Grav's summary break (=== on a line of its own after a blank line, as in a week's page) isn't shown: kept
+        // in a hidden note. (Right after a line of text, === underlines a heading instead, so that's left alone.)
         $markdown = preg_replace_callback('/(?<=\n\n)===[ \t]*(?=\n|$)/', function ($match) {
             return self::hiddenLine($match[0]);
         }, $markdown);

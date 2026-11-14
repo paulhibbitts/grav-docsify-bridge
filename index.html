@@ -357,12 +357,18 @@ function showDone(response, fileName) {
   // a course: its modules are counted instead
   var moduleCount = response.headers.get('X-Modules-Converted');
   if (moduleCount !== null) {
-    message = 'Converted a course of ' + moduleCount + ' module' + (moduleCount === '1' ? '' : 's');
+    message = 'Converted a course of ' + moduleCount + ' module';
+    if (moduleCount !== '1') {
+      message += 's';
+    }
   }
   // several courses (a whole Open Course Space site): its courses are counted instead
   var courseCount = response.headers.get('X-Courses-Converted');
   if (courseCount !== null) {
-    message = 'Converted ' + courseCount + ' course' + (courseCount === '1' ? '' : 's');
+    message = 'Converted ' + courseCount + ' course';
+    if (courseCount !== '1') {
+      message += 's';
+    }
   }
   message += ' to ' + platform + ' – ' + fileName + ' has been downloaded.';
   if (warningCount === 1) {

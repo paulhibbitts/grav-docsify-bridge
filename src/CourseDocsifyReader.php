@@ -54,9 +54,16 @@ class CourseDocsifyReader
     private function fromNotes(array $notedPages): Site
     {
         $site = new Site();
-        // the course's folder, settings and header image, kept in the home page's note
-        $this->readCourseNote($site, $notedPages['home.md']['where'] ?? []);
-        $this->siteUrl = (string)($notedPages['home.md']['where']['site'] ?? '');
+        // the home page's note keeps the course's folder, settings and header image, and the original site's address
+        $homeNote = [];
+        if (isset($notedPages['home.md'])) {
+            $homeNote = $notedPages['home.md']['where'];
+        }
+        $this->readCourseNote($site, $homeNote);
+        $this->siteUrl = '';
+        if (isset($homeNote['site'])) {
+            $this->siteUrl = (string)$homeNote['site'];
+        }
         $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
         // every page's Grav address first, for the links between them
         foreach ($notedPages as $file => $note) {
@@ -141,8 +148,14 @@ class CourseDocsifyReader
     // converted before they were kept), a new course folder.
     private function readCourseNote(Site $site, array $where): void
     {
-        $course = $where['course'] ?? [];
-        $folder = (string)($course['folder'] ?? '');
+        $course = [];
+        if (isset($where['course']) && is_array($where['course'])) {
+            $course = $where['course'];
+        }
+        $folder = '';
+        if (isset($course['folder'])) {
+            $folder = (string)$course['folder'];
+        }
         // the folder is written on the server, so only a plain folder name: letters, numbers, . _ and -
         if (preg_match('/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/', $folder) !== 1 || str_contains($folder, '..')) {
             $this->newCourse($site);
@@ -150,12 +163,17 @@ class CourseDocsifyReader
         }
         $site->courseFolder = $folder;
         $site->coursePage = $this->pageFromNote('course', '', 'course.md', $course);
-        $header = $where['headerimage'] ?? null;
-        if (!is_array($header)) {
+        if (!isset($where['headerimage']) || !is_array($where['headerimage'])) {
             return;
         }
+        $header = $where['headerimage'];
         $site->headerImage = $this->pageFromNote('headerimage', 'headerimage', 'default.md', $header);
-        foreach ((array)($header['images'] ?? []) as $name => $source) {
+        // each image's name, and where it is in the Docsify site: ['photo.jpg' => 'images/photo.jpg']
+        $images = [];
+        if (isset($header['images']) && is_array($header['images'])) {
+            $images = $header['images'];
+        }
+        foreach ($images as $name => $source) {
             $name = basename((string)$name);
             $path = Helpers::imageInside($this->dir, $this->dir . '/' . ltrim((string)$source, './'));
             if ($path !== '') {
@@ -169,12 +187,16 @@ class CourseDocsifyReader
     private function pageFromNote(string $kind, string $folder, string $file, array $kept): Page
     {
         $page = new Page($kind, $folder, $file);
-        $page->yaml = (string)($kept['yaml'] ?? '');
+        if (isset($kept['yaml'])) {
+            $page->yaml = (string)$kept['yaml'];
+        }
         $settings = Yaml::parse($page->yaml);
         if (is_array($settings)) {
             $page->meta = $settings;
         }
-        $page->body = (string)($kept['body'] ?? '');
+        if (isset($kept['body'])) {
+            $page->body = (string)$kept['body'];
+        }
         foreach (['before' => 'textBefore', 'after' => 'textAfter'] as $name => $property) {
             if (isset($kept[$name]) && trim((string)$kept[$name]) === '') {
                 $page->$property = (string)$kept[$name];
@@ -301,14 +323,27 @@ class CourseDocsifyReader
         $text = Helpers::hideCode($text, $codeParts);
         $text = Callouts::toGrav($text);
         $text = Embeds::toGrav($text);
-        $text = Links::mapToGrav($text, $this->addresses, $note['where']['links'] ?? []);
+        // each converted link's original form, e.g. ['module-01.md', '../modules/module-01']
+        $originalLinks = [];
+        if (isset($note['where']['links']) && is_array($note['where']['links'])) {
+            $originalLinks = $note['where']['links'];
+        }
+        $text = Links::mapToGrav($text, $this->addresses, $originalLinks);
         // relative links to Grav-only pages, made full: back as they were written (../all-web-picks-of-the-week)
-        foreach ($note['where']['links'] ?? [] as $link) {
-            if (str_starts_with((string)$link[0], 'http') && ($at = strpos($text, '](' . $link[0])) !== false) {
-                $text = substr_replace($text, '](' . $link[1], $at, strlen('](' . $link[0]));
+        foreach ($originalLinks as $link) {
+            if (!str_starts_with((string)$link[0], 'http')) {
+                continue;
+            }
+            $fullLink = '](' . $link[0];
+            $at = strpos($text, $fullLink);
+            if ($at !== false) {
+                $text = substr_replace($text, '](' . $link[1], $at, strlen($fullLink));
             }
         }
-        $site = $note['where']['site'] ?? $this->siteUrl;
+        $site = $this->siteUrl;
+        if (isset($note['where']['site'])) {
+            $site = (string)$note['where']['site'];
+        }
         if ($site !== '') {
             $text = str_replace('](' . rtrim($site, '/') . '/', '](/', $text);
         }
@@ -391,7 +426,6 @@ class CourseDocsifyReader
         return $rest;
     }
 
-    // A link group as Open Course Space writes it: a heading, then a link on each line
     // A sidebar link with an icon image in front, as the converter and the Starter Kits write them → the theme's icon
     // before the link: [![Calendar Icon](https://api.iconify.design/fa/calendar.svg?…)Calendar](…) → [fa="calendar"][/fa][Calendar](…)
     private static function iconLinkToGrav(string $link): string
@@ -406,6 +440,7 @@ class CourseDocsifyReader
         return $icon . '[' . substr($link, strlen($found[0]));
     }
 
+    // A link group as Open Course Space writes it: a heading, then a link on each line
     private function groupText(array $group): string
     {
         $lines = ['## ' . $group['heading']];

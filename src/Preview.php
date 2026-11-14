@@ -54,7 +54,7 @@ class Preview
         if ($direction === 'docsify' && preg_match('/<a href="#\/([A-Za-z0-9_-]+)\/home">/', $this->fileText('home.md'), $found) === 1) {
             $folder = $found[1] . '/';
         }
-        $samples = ['Courses page' => $coursesPage] + $this->courseSamples($direction, $folder);
+        $samples = array_merge(['Courses page' => $coursesPage], $this->courseSamples($direction, $folder));
         unset($samples['Module 2']);
         return $samples;
     }

@@ -73,7 +73,7 @@ class CourseDocsifyWriter
             // in a site of several courses, a way back to the Courses page (the site's home page: links start at the
             // top, so it's added after the course's own links get its folder), after the course's name
             $lines = explode("\n", (string)file_get_contents($this->out . '/_navbar.md'));
-            array_splice($lines, 1, 0, ['- [All Courses](home.md)']);
+            $lines = array_merge([$lines[0], '- [All Courses](home.md)'], array_slice($lines, 1));
             file_put_contents($this->out . '/_navbar.md', implode("\n", $lines));
         }
         $this->writeSidebar($site, $sidebarGroups);
@@ -198,14 +198,14 @@ class CourseDocsifyWriter
     // The course's settings (course.md) and header image (headerimage/), exactly as written, for the home page's note
     private function courseNote(Site $site): array
     {
-        $note = ['course' => ['folder' => $site->courseFolder] + self::pageText($site->coursePage)];
+        $note = ['course' => array_merge(['folder' => $site->courseFolder], self::pageText($site->coursePage))];
         if ($site->headerImage !== null) {
             // each image's address in images/, where the way back finds it
             $sources = [];
             foreach ($site->headerImage->images as $image) {
                 $sources[$image] = $this->copyImage($site->headerImage, $image);
             }
-            $note['headerimage'] = ['images' => $sources] + self::pageText($site->headerImage);
+            $note['headerimage'] = array_merge(['images' => $sources], self::pageText($site->headerImage));
         }
         return $note;
     }
@@ -421,8 +421,12 @@ class CourseDocsifyWriter
     private function headerImage(Page $page): string
     {
         $isShown = !empty($page->meta['header_image']);
+        // a week (item.md) shows its first image unless it's turned off
         if ($page->file === 'item.md') {
-            $isShown = ($page->meta['header_image'] ?? true) !== false;
+            $isShown = true;
+            if (isset($page->meta['header_image']) && $page->meta['header_image'] === false) {
+                $isShown = false;
+            }
         }
         if (!$isShown || count($page->images) === 0) {
             return '';
@@ -505,7 +509,11 @@ class CourseDocsifyWriter
         $lines[] = '';
         $cards = ['<div class="card-list card-list-guides">', ''];
         foreach ($courses as $course) {
-            $cards = array_merge($cards, self::courseCard($course, $courseBanners[$course->courseFolder] ?? ''));
+            $banner = '';
+            if (isset($courseBanners[$course->courseFolder])) {
+                $banner = $courseBanners[$course->courseFolder];
+            }
+            $cards = array_merge($cards, self::courseCard($course, $banner));
         }
         $cards[] = '</div>';
         $lines = array_merge($lines, Helpers::generated($cards), ['']);
@@ -523,7 +531,10 @@ class CourseDocsifyWriter
     {
         $slug = Helpers::slugFromFolder($course->courseFolder);
         $title = $course->coursePage->title();
-        $image = $banner !== '' ? $slug . '/' . $banner : '';
+        $image = '';
+        if ($banner !== '') {
+            $image = $slug . '/' . $banner;
+        }
         return Helpers::card($slug . '/home', $title, $image, $title, [$course->coursePage->setting('description')]);
     }
 

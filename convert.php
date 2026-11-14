@@ -442,6 +442,8 @@ $course = null;
 // a whole Open Course Space site (its Courses page and courses), and the courses converted, each a Site
 $courseSite = null;
 $courses = [];
+// tips for conversion-notes.txt
+$tips = [];
 
 if ($repo !== null) {
     $docsifyFolder = findDocsifyFolder($searchFolder);
@@ -503,7 +505,6 @@ if ($repo !== null) {
         $writer->write($course, $pagesFolder, $work . '/out', $siteUrl);
         $warnings = array_values(array_unique(array_merge($reader->notes, $writer->warnings)));
     }
-    $tips = $tips ?? [];
     $tips[] = 'to use your Grav site\'s favicon, copy it from user/themes/mytheme/images/favicon/ into the Docsify site and add '
         . '&loadFavicon= with its file name (such as favicon.png) to the Docsify-This link';
 }
@@ -562,7 +563,7 @@ if ($repo !== null && $course === null) {
 if ($course !== null && count($courses) === 0) {
     $courses = [$course];
 }
-writeNotes($work . '/out/conversion-notes.txt', $guides, $warnings, $tips ?? [], $courses);
+writeNotes($work . '/out/conversion-notes.txt', $guides, $warnings, $tips, $courses);
 
 // ---- a preview: sample pages instead of the zip ----
 

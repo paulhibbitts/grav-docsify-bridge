@@ -30,7 +30,8 @@ class CourseSite
             }
             $course = $reader->read($folder);
             // a switched-off course isn't on the Courses page, so it isn't converted
-            if (($course->coursePage->meta['published'] ?? true) === false) {
+            $isSwitchedOff = isset($course->coursePage->meta['published']) && $course->coursePage->meta['published'] === false;
+            if ($isSwitchedOff) {
                 $this->notes[] = $course->coursePage->title() . ' (' . $name . ') is switched off, so it wasn\'t converted';
                 continue;
             }
