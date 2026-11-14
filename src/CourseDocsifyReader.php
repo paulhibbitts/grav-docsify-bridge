@@ -163,6 +163,10 @@ class CourseDocsifyReader
         }
         $site->courseFolder = $folder;
         $site->coursePage = $this->pageFromNote('course', '', 'course.md', $course);
+        // the course's footer, kept here (it isn't shown in Docsify)
+        if (isset($where['footer']) && is_array($where['footer'])) {
+            $site->courseFooter = $this->pageFromNote('footer', 'footer', 'default.md', $where['footer']);
+        }
         if (!isset($where['headerimage']) || !is_array($where['headerimage'])) {
             return;
         }
@@ -226,41 +230,16 @@ class CourseDocsifyReader
         if ($label !== '' && $label !== $page->title()) {
             $changes['title'] = $label;
         }
-        // the page's # heading, in the converter's generated block at the top
-        if (preg_match('/<!-- grav:gen -->\n.*?^# (.+?)$.*?<!-- \/grav:gen -->/sm', $note['rest'], $found) === 1) {
+        // the page's # heading (the module's title), in the converter's generated block at the top: an edited
+        // heading renames the module, unless its sidebar link was renamed
+        if (preg_match('/<!-- grav:gen -->\n# (.+?)\n/', $note['rest'], $found) === 1) {
             $heading = trim($found[1]);
-            // the heading shows the description, or the title when there's none
-            $hasDescription = $page->setting('description') !== '';
-            $shown = $page->title();
-            if ($hasDescription) {
-                $shown = $page->setting('description');
-            }
-            if ($heading !== $shown) {
-                if ($hasDescription) {
-                    $changes['description'] = $heading;
-                } elseif (!isset($changes['title'])) {
-                    $changes['title'] = $heading;
-                }
-                $page->body = $this->withNewFirstHeading($page->body, $shown, $heading);
+            if ($heading !== $page->title() && !isset($changes['title'])) {
+                $changes['title'] = $heading;
             }
         }
         $this->changeSettings($page, $changes);
         return $page;
-    }
-
-    // A first heading that repeated the old text gets the new text: '## **Old**' → '## **New**'
-    private function withNewFirstHeading(string $body, string $old, string $new): string
-    {
-        $lines = explode("\n", $body);
-        // the first line with text
-        $first = 0;
-        while ($first < count($lines) && trim($lines[$first]) === '') {
-            $first++;
-        }
-        if ($first < count($lines) && str_starts_with(ltrim($lines[$first]), '#') && str_contains($lines[$first], $old)) {
-            $lines[$first] = str_replace($old, $new, $lines[$first]);
-        }
-        return implode("\n", $lines);
     }
 
     // The home page and its parts: each part starts with its own note and the page-inject line that shows it, and

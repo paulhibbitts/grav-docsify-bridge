@@ -546,14 +546,18 @@ if ($repo !== null && $course === null) {
         fail('No Open Publishing Space guides or Open Course Space course were found in that zip. Zip your site\'s user/pages folder for guides (each guide is a folder with a section-list.md or guide.md page), or a course\'s own folder (with its course.md)');
     }
     $direction = 'docsify';
-    $site = (new GravReader())->read($pagesFolder);
+    $reader = new GravReader();
+    $site = $reader->read($pagesFolder);
+    if (count($site->guides) === 0) {
+        fail('No published guides were found in that zip. A guide that\'s switched off (Published turned off) isn\'t converted.');
+    }
     $writer = new DocsifyWriter();
     $writer->write($site, $pagesFolder, $work . '/out', $single, $siteUrl);
     $guides = $site->guides;
     if ($single) {
         $guides = array_slice($site->guides, 0, 1);
     }
-    $warnings = array_values(array_unique($writer->warnings));
+    $warnings = array_values(array_unique(array_merge($reader->notes, $writer->warnings)));
     // the converter doesn't know the site's name or favicon (Grav keeps them outside the pages folder), so it can't add them
     $tips = ['to show your site\'s name at the top of pages without a sidebar (and on phones), add this as the first line of '
         . 'each _navbar.md: - [Your Site Name](home.md ":class=site-title")',

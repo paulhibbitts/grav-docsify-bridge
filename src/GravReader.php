@@ -6,9 +6,13 @@ use Symfony\Component\Yaml\Yaml;
 // Reads the guides of an Open Publishing Space site from its user/pages folder
 class GravReader
 {
+    // things worth checking, for conversion-notes.txt
+    public array $notes = [];
+
     public function read(string $pagesDir): Site
     {
         $site = new Site();
+        $this->notes = [];
         foreach ($this->subfolders($pagesDir) as $name) {
             $folder = $pagesDir . '/' . $name;
             // (the Guides page is reader-list.md or, its newer name, guide-list.md; a guide's home page is
@@ -18,7 +22,14 @@ class GravReader
             if ($guidesPageFile !== '') {
                 $site->guidesPage = $this->readPage($pagesDir, $name, $guidesPageFile, 'guides');
             } elseif ($guideFile !== '') {
-                $site->guides[] = $this->readGuide($pagesDir, $name, $guideFile);
+                $guide = $this->readGuide($pagesDir, $name, $guideFile);
+                // a switched-off guide isn't on the Guides page, so it isn't converted (as for courses)
+                $isSwitchedOff = isset($guide->meta['published']) && $guide->meta['published'] === false;
+                if ($isSwitchedOff) {
+                    $this->notes[] = $guide->title() . ' (' . $name . ') is switched off, so it wasn\'t converted';
+                } else {
+                    $site->guides[] = $guide;
+                }
             }
             // anything else (the blog, standard and modular pages) isn't a guide, so it isn't converted
         }

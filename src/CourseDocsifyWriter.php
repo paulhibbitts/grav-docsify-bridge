@@ -3,7 +3,7 @@ namespace OPG;
 
 // Writes an Open Course Space course as a Docsify course, laid out like the Docsify Open Course Starter Kit and shown
 // like the course in Grav: home.md (with the course's header image and name), a page per module and menu page,
-// images/, _sidebar.md (modules and LMS links), _navbar.md and _footer.md. Hidden notes keep what's needed to go back
+// images/, _sidebar.md (modules and LMS links) and _navbar.md. Hidden notes keep what's needed to go back
 // to the same Grav pages (see CourseDocsifyReader).
 class CourseDocsifyWriter
 {
@@ -77,51 +77,53 @@ class CourseDocsifyWriter
             file_put_contents($this->out . '/_navbar.md', implode("\n", $lines));
         }
         $this->writeSidebar($site, $sidebarGroups);
-        if ($site->courseFooter !== null) {
-            $footer = trim($this->convert($this->withImagesFolder($site->courseFooter), $this->course, '_footer.md'));
-            $this->writeFile('_footer.md', implode("\n", [$this->note($site->courseFooter), '', $footer]));
-        }
+        // (the course's footer only says the site was built with Grav, so it isn't shown: it's kept in the home
+        // page's note, see courseNote())
     }
 
-    // A module's page, as in the Starter Kits: its header image (with its credit), the module's description as its
-    // title (or its title when it has no description), its Learning Objectives, then its text. A first heading that
-    // repeats the description is kept in a hidden note instead of showing it twice.
+    // A module's page, as Open Course Space shows it: the module's title as its heading, then its header image (with
+    // its credit), its description and any learning objectives, then its text
     private function writeModule(Page $module, string $modulesPath): void
     {
         $file = $module->slug() . '.md';
         $gravPath = $modulesPath . '/' . $module->slug();
-        $head = [];
+        $head = ['# ' . $module->title()];
         $headerImage = $this->headerImage($module);
         if ($headerImage !== '') {
-            $head[] = '![' . $module->setting('header_image_alt_text') . '](' . $headerImage . ' \':class=banner-image\')';
             $head[] = '';
+            $head[] = '![' . $module->setting('header_image_alt_text') . '](' . $headerImage . ' \':class=banner-image\')';
             if ($module->setting('header_image_credit') !== '') {
                 $credit = $module->setting('header_image_credit');
                 if ($module->setting('header_image_creditlink') !== '') {
                     $credit = '[' . $credit . '](' . $module->setting('header_image_creditlink') . ')';
                 }
-                $head[] = '<small>Photo: ' . $credit . '</small>';
                 $head[] = '';
+                $head[] = '<small>Photo: ' . $credit . '</small>';
             }
         }
-        $title = $module->setting('description');
-        if ($title === '') {
-            $title = $module->title();
+        // the description as a ## heading, left out of the sidebar's list of the page's sections
+        // ({docsify-ignore}); the text's own copy of it is hidden below (see withoutRepeatedHeading())
+        $description = $module->setting('description');
+        if ($description !== '') {
+            $head[] = '';
+            $head[] = '## ' . $description . ' <!-- {docsify-ignore} -->';
         }
-        $head[] = '# ' . $title;
         if ($module->setting('learning_objectives') !== '') {
             $head[] = '';
             $head[] = Callouts::quote('TIP', 'Learning Objectives', $module->setting('learning_objectives'));
         }
-        $body = $this->withoutRepeatedHeading($this->withImagesFolder($module), $title);
+        $body = $this->withImagesFolder($module);
+        if ($description !== '') {
+            $body = $this->withoutRepeatedHeading($body, $description);
+        }
         $body = $this->convert($body, $gravPath, $file);
         $lines = array_merge([$this->note($module), ''], Helpers::generated($head), ['', trim($body)]);
         $this->writeFile($file, implode("\n", $lines));
     }
 
-    // '## **What is usability?**' at the start of the text, when the title is 'What is usability?', is kept as a
-    // hidden note. When that was the text's only ## heading, its ### headings move up to ##, so the headings follow
-    // on from the title (# then ##) as in the Starter Kits; the note says so, for the way back.
+    // '## **What is usability?**' at the start of the text, when the description is 'What is usability?', is kept as
+    // a hidden note (the description is shown above it). When that was the text's only ## heading, its ### headings
+    // move up to ##, so the sidebar lists the page's sections; the note says so, for the way back.
     private function withoutRepeatedHeading(string $body, string $title): string
     {
         $text = ltrim($body, "\n");
@@ -195,7 +197,8 @@ class CourseDocsifyWriter
         $this->writeFile('home.md', implode("\n", $head) . implode("\n", $sections));
     }
 
-    // The course's settings (course.md) and header image (headerimage/), exactly as written, for the home page's note
+    // The course's settings (course.md), header image (headerimage/) and footer (footer/), exactly as written, for the
+    // home page's note
     private function courseNote(Site $site): array
     {
         $note = ['course' => array_merge(['folder' => $site->courseFolder], self::pageText($site->coursePage))];
@@ -206,6 +209,9 @@ class CourseDocsifyWriter
                 $sources[$image] = $this->copyImage($site->headerImage, $image);
             }
             $note['headerimage'] = array_merge(['images' => $sources], self::pageText($site->headerImage));
+        }
+        if ($site->courseFooter !== null) {
+            $note['footer'] = self::pageText($site->courseFooter);
         }
         return $note;
     }
@@ -363,8 +369,9 @@ class CourseDocsifyWriter
             $lines = [Helpers::gravNote($modulesPage, array_merge($extra, self::spacing($modulesPage))), ''];
         }
         if ($this->top !== '') {
-            // in a site of several courses, the course's name first, in bold (not a link), as for guides
-            $lines = array_merge($lines, Helpers::generated(['**' . $site->coursePage->title() . '**']), ['']);
+            // in a site of several courses, the course's name first, in bold, as for guides – a link to the course's
+            // home page, the way back from its pages
+            $lines = array_merge($lines, Helpers::generated(['**[' . $site->coursePage->title() . '](home.md)**']), ['']);
         }
         foreach ($modulesPage->children as $module) {
             // hidden or unpublished modules aren't listed

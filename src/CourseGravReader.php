@@ -8,8 +8,6 @@ namespace OPG;
 // $notes.
 class CourseGravReader extends GravReader
 {
-    public array $notes = [];
-
     public function read(string $pagesDir): Site
     {
         $site = new Site();

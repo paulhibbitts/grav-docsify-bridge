@@ -23,10 +23,21 @@ mkdir($work);
 
 $failed = 0;
 
-// 1. Grav guides → Docsify → Grav: the same files as the original
-convert('grav2docsify', "$samples/grav-guides", "$work/guides-docsify");
+// 1. Grav guides → Docsify → Grav: the same files as the original. The Sample Guide is switched off in the skeleton
+//    (and so isn't converted), so it's switched on in a copy here
+copyFolder("$samples/grav-guides", "$work/guides");
+switchOn("$work/guides/02.sample-guide/section-list.md");
+convert('grav2docsify', "$work/guides", "$work/guides-docsify");
 convert('docsify2grav', "$work/guides-docsify", "$work/guides-back");
-$failed += report('Grav guides come back identical', sameFiles("$samples/grav-guides", "$work/guides-back"));
+$failed += report('Grav guides come back identical', sameFiles("$work/guides", "$work/guides-back"));
+
+// 1a. A switched-off guide isn't converted (as on the Grav site's Guides page)
+convert('grav2docsify', "$samples/grav-guides", "$work/guides-off-docsify");
+$differences = [];
+if (is_dir("$work/guides-off-docsify/sample-guide") || !is_dir("$work/guides-off-docsify/open-education-essentials")) {
+    $differences[] = 'the switched-off Sample Guide was converted, or the other guide wasn\'t';
+}
+$failed += report('A switched-off guide is left out', $differences);
 
 // 1b. A tiny guide with cases that once came back changed: the same files as the original
 convert('grav2docsify', "$samples/grav-extras", "$work/extras-docsify", 'single');
@@ -35,7 +46,7 @@ $failed += report('Grav test guide comes back identical', sameFiles("$samples/gr
 
 // 1c. The same guides with the newer page names (guide.md for each guide, guide-list.md for the Guides page):
 //     they come back with those names
-copyFolder("$samples/grav-guides", "$work/renamed");
+copyFolder("$work/guides", "$work/renamed");
 rename("$work/renamed/00.guides/reader-list.md", "$work/renamed/00.guides/guide-list.md");
 rename("$work/renamed/01.open-education-essentials/section-list.md", "$work/renamed/01.open-education-essentials/guide.md");
 rename("$work/renamed/02.sample-guide/section-list.md", "$work/renamed/02.sample-guide/guide.md");
@@ -87,6 +98,13 @@ echo "\n$failed check(s) failed.\n";
 exit(1);
 
 // ---- helpers ----
+
+// Turns on a page's Published setting (published: false → published: true)
+function switchOn(string $file): void
+{
+    $text = (string)file_get_contents($file);
+    file_put_contents($file, str_replace("\npublished: false\n", "\npublished: true\n", $text));
+}
 
 // Runs one conversion with the converter's own command-line tool
 function convert(string $direction, string $from, string $to, string $option = ''): void

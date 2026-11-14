@@ -99,7 +99,11 @@ if ($direction === 'docsify2grav') {
     exit;
 }
 
-$site = (new GravReader())->read($source);
+$reader = new GravReader();
+$site = $reader->read($source);
+foreach ($reader->notes as $note) {
+    echo 'Note – ' . $note . "\n";
+}
 $writer = new DocsifyWriter();
 $writer->write($site, $source, $out, $single, $siteUrl);
 foreach ($writer->warnings as $warning) {
