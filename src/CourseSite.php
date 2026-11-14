@@ -47,6 +47,10 @@ class CourseSite
             }
             $this->courses[] = $course;
         }
+        // nothing to convert: no Courses page either
+        if (count($this->courses) === 0) {
+            return;
+        }
         if ($coursesPage === null) {
             $coursesPage = new Page('courses', '00.courses', 'course-list.md');
             $coursesPage->meta = ['title' => 'Courses'];

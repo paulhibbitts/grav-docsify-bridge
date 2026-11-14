@@ -442,7 +442,7 @@ class DocsifyWriter
     {
         $codeParts = [];
         $markdown = Helpers::hideCode($markdown, $codeParts);
-        $markdown = Embeds::hideInjectLines($markdown, $codeParts);
+        $markdown = Embeds::hideInjectLines($markdown, $codeParts, $this->siteUrl !== '');
         $markdown = Embeds::toDocsify($markdown);
         $markdown = Callouts::toDocsify($markdown);
         $markdown = Links::newTabToDocsify($markdown);

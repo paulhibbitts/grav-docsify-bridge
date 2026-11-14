@@ -74,13 +74,22 @@ class Embeds
         return $markdown;
     }
 
-    // A part of another page shown here ([plugin:page-inject](…)) only works in Grav: kept in a hidden note, and set
-    // aside with the code (see Helpers::hideCode) so its link isn't converted
-    public static function hideInjectLines(string $markdown, array &$codeParts): string
+    // A part of another page shown here ([plugin:page-inject](…)) only works in Grav: kept in a hidden note, set aside
+    // with the code (see Helpers::hideCode) so its link isn't converted. $withLink (when the original site's address
+    // is known): a link to that page on the Grav site goes below the note, as an embed's HTML does, and goes again on
+    // the way back. Example: [plugin:page-inject](../web-pick-of-the-week/) →
+    //   <!-- grav-embed: [plugin:page-inject](../web-pick-of-the-week/) -->
+    //   [See it on the original site](../web-pick-of-the-week/)   (made a full link later, see Links::gravOnly)
+    public static function hideInjectLines(string $markdown, array &$codeParts, bool $withLink = false): string
     {
-        return preg_replace_callback('/^\[plugin:page-inject\]\([^)]*\)[ \t]*$/m', function ($match) use (&$codeParts) {
-            $codeParts[] = self::hiddenLine($match[0]);
-            return Helpers::CODE_MARK . (count($codeParts) - 1) . Helpers::CODE_MARK;
+        return preg_replace_callback('/^\[plugin:page-inject\]\(([^)]*)\)[ \t]*$/m', function ($match) use (&$codeParts, $withLink) {
+            if (!$withLink) {
+                $codeParts[] = self::hiddenLine($match[0]);
+                return Helpers::CODE_MARK . (count($codeParts) - 1) . Helpers::CODE_MARK;
+            }
+            $codeParts[] = '<!-- ' . self::NOTE . ': ' . str_replace('-->', '--&gt;', $match[0]) . ' -->';
+            $note = Helpers::CODE_MARK . (count($codeParts) - 1) . Helpers::CODE_MARK;
+            return "\n" . $note . "\n[See it on the original site](" . trim($match[1]) . ")\n";
         }, $markdown);
     }
 
@@ -305,6 +314,8 @@ class Embeds
     // image option).
     public static function iconsToGrav(string $markdown): string
     {
+        // Font Awesome 4.7's own icons (as the converter writes sidebar icons): the same name
+        $markdown = preg_replace('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa\/([a-z0-9-]+)\.svg[^)\s]*\)/', '[fa="$1"][/fa] ', $markdown);
         $markdown = preg_replace_callback('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa6-(solid|regular|brands)\/([a-z0-9-]+)\.svg[^)\s]*\)/', function ($match) {
             $name = $match[2];
             if ($match[1] === 'regular' && !str_ends_with($name, '-o')) {

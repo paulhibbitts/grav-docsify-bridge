@@ -487,7 +487,7 @@ if ($repo !== null) {
         $courseSite = new CourseSite();
         $courseSite->toDocsify(dirname(findCourseFolder($searchFolder)), $work . '/out', $siteUrl);
         if (count($courseSite->courses) === 0) {
-            fail('No published courses with a Modules page were found in that zip.');
+            fail('No published courses with a Modules or Weekly Units page were found in that zip.');
         }
         $courses = $courseSite->courses;
         $course = $courses[0];

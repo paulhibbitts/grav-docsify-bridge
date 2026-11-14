@@ -49,8 +49,12 @@ class Preview
         if ($direction === 'grav') {
             $coursesPage = $this->firstMatch('pages/*/course-list.md');
         }
-        // (in Docsify, each course is in a folder of its own: cpt363-basic/…)
-        $samples = ['Courses page' => $coursesPage] + $this->courseSamples($direction, dirname($this->firstMatch('*/_sidebar.md')) . '/');
+        // (in Docsify, each course is in a folder of its own: the first card's, as in <a href="#/cpt363-basic/home">)
+        $folder = '';
+        if ($direction === 'docsify' && preg_match('/<a href="#\/([A-Za-z0-9_-]+)\/home">/', $this->fileText('home.md'), $found) === 1) {
+            $folder = $found[1] . '/';
+        }
+        $samples = ['Courses page' => $coursesPage] + $this->courseSamples($direction, $folder);
         unset($samples['Module 2']);
         return $samples;
     }
@@ -83,8 +87,9 @@ class Preview
             foreach (array_slice($links[1], 0, 2) as $index => $module) {
                 $samples['Module ' . ($index + 1)] = $module;
             }
+            // (not All Courses, the link back to the Courses page: home.md)
             $navbar = $this->fileText($folder . '_navbar.md');
-            if (preg_match('/\]\(([^)\s]+\.md)\)/', $navbar, $found) === 1) {
+            if (preg_match('/\]\((?!home\.md\))([^)\s]+\.md)\)/', $navbar, $found) === 1) {
                 $samples['Menu page'] = $found[1];
             }
             $samples['Sidebar'] = $folder . '_sidebar.md';

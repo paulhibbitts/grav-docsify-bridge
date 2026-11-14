@@ -55,7 +55,8 @@ class CourseDocsifyWriter
         }
         $this->writeHome($site, $modulesPage);
 
-        $navbar = [];
+        // the course's name first, as the site's title (Docsify-This shows it on phones, where the sidebar starts closed)
+        $navbar = ['- [' . $site->coursePage->title() . '](home.md ":class=site-title")'];
         foreach ($site->coursePages as $page) {
             $this->writeMenuPage($page);
             $navbar[] = '- [' . $page->title() . '](' . $page->slug() . '.md)';
@@ -69,8 +70,11 @@ class CourseDocsifyWriter
         }
         $this->writeFile('_navbar.md', implode("\n", $navbar));
         if ($this->top !== '') {
-            // in a site of several courses, a way back to the Courses page (the site's home page: links start at the top)
-            file_put_contents($this->out . '/_navbar.md', "- [All Courses](home.md)\n" . file_get_contents($this->out . '/_navbar.md'));
+            // in a site of several courses, a way back to the Courses page (the site's home page: links start at the
+            // top, so it's added after the course's own links get its folder), after the course's name
+            $lines = explode("\n", (string)file_get_contents($this->out . '/_navbar.md'));
+            array_splice($lines, 1, 0, ['- [All Courses](home.md)']);
+            file_put_contents($this->out . '/_navbar.md', implode("\n", $lines));
         }
         $this->writeSidebar($site, $sidebarGroups);
         if ($site->courseFooter !== null) {
@@ -281,9 +285,11 @@ class CourseDocsifyWriter
                 if (trim($line) === '') {
                     continue;
                 }
-                // a link on its own line; its text may hold an icon's note, e.g. [<!-- … [fa="x"][/fa] -->Calendar](…)
-                if (preg_match('/^\s*[-*]?\s*(\[(?:[^\[\]]|\[[^\]]*\])+\]\([^)]+\))\s*$/', $line, $found) === 1) {
-                    $links[] = $found[1];
+                // a link on its own line, maybe after an icon: [fa="calendar"][/fa][Calendar](…), which is by now
+                // <!-- grav-embed: [fa="calendar"][/fa] -->:fas fa-calendar fa-fw:[Calendar](…)
+                $pattern = '/^\s*[-*]?\s*((?:<!-- grav-embed: (\[fa[^\n]*?) -->:fa[srb] fa-[a-z0-9-]+ fa-fw:)?(\[(?:[^\[\]]|\[[^\]]*\])+\]\([^)]+\)))\s*$/';
+                if (preg_match($pattern, $line, $found) === 1) {
+                    $links[] = ['text' => $found[1], 'icon' => $found[2], 'link' => $found[3]];
                 } else {
                     $onlyLinks = false;
                 }
@@ -291,7 +297,7 @@ class CourseDocsifyWriter
             if ($heading !== '' && $onlyLinks && count($links) > 0) {
                 $groups[] = '- **' . $heading . '**';
                 foreach ($links as $link) {
-                    $groups[] = '  - ' . $link;
+                    $groups[] = '  - ' . self::withIconImage($link['link'], $link['icon']);
                 }
                 $contact[] = self::groupNote($section, $heading, $links);
                 continue;
@@ -316,17 +322,31 @@ class CourseDocsifyWriter
 
     // A sidebar section of links, as a hidden note: the section with its heading and links taken out, e.g.
     // "## {heading}\n{link}  \n{link}", so the way back can fill in the heading and links from _sidebar.md
+    // (an icon stays in the layout as its shortcode: "[fa="calendar"][/fa]{link}")
     private static function groupNote(string $section, string $heading, array $links): string
     {
-        $layout = trim($section);
+        // only blank lines are trimmed, so a line break at a line's end ("  ") stays
+        $layout = trim($section, "\n");
         $headingAt = strpos($layout, $heading);
         $layout = substr($layout, 0, $headingAt) . '{heading}' . substr($layout, $headingAt + strlen($heading));
         foreach ($links as $link) {
-            $at = strpos($layout, $link);
-            $layout = substr($layout, 0, $at) . '{link}' . substr($layout, $at + strlen($link));
+            $at = strpos($layout, $link['text']);
+            $layout = substr($layout, 0, $at) . $link['icon'] . '{link}' . substr($layout, $at + strlen($link['text']));
         }
         $json = json_encode(['layout' => $layout], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         return '<!-- grav:sidebar-group ' . str_replace('-->', '-->', $json) . ' -->';
+    }
+
+    // A sidebar link with its icon in front, as the Starter Kits show them: an image from api.iconify.design, which has
+    // Font Awesome 4.7's icons under the theme's own names ([fa="calendar-o"] → fa/calendar-o.svg).
+    // Example: [Calendar](https://…) → [![Calendar Icon](https://api.iconify.design/fa/calendar.svg?height=16&color=%23808080)Calendar](https://…)
+    private static function withIconImage(string $link, string $icon): string
+    {
+        if (preg_match('/^\[fa=?"?([a-z0-9-]+)/', $icon, $found) !== 1 || preg_match('/^\[(.*)\]\(/s', $link, $text) !== 1) {
+            return $link;
+        }
+        $image = '![' . $text[1] . ' Icon](https://api.iconify.design/fa/' . $found[1] . '.svg?height=16&color=%23808080)';
+        return '[' . $image . substr($link, 1);
     }
 
     // The modules in order, then any link groups from the course sidebar. With a home page, the Modules page's own
@@ -511,7 +531,7 @@ class CourseDocsifyWriter
     {
         $codeParts = [];
         $markdown = Helpers::hideCode($markdown, $codeParts);
-        $markdown = Embeds::hideInjectLines($markdown, $codeParts);
+        $markdown = Embeds::hideInjectLines($markdown, $codeParts, $this->siteUrl !== '');
         $markdown = Embeds::toDocsify($markdown);
         $markdown = Callouts::toDocsify($markdown);
         $markdown = Links::newTabToDocsify($markdown);

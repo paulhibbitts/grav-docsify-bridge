@@ -373,6 +373,10 @@ class CourseDocsifyReader
             $layout = str_replace('{heading}', $group['heading'], $layout);
             foreach ($group['links'] as $link) {
                 $at = strpos($layout, '{link}');
+                // an icon kept in the layout ([fa="calendar"][/fa]{link}): the link's icon image goes
+                if (str_ends_with(substr($layout, 0, $at), '[/fa]')) {
+                    $link = preg_replace('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/[^)]*\)/', '', $link);
+                }
                 $layout = substr($layout, 0, $at) . $link . substr($layout, $at + strlen('{link}'));
             }
             return $layout;
