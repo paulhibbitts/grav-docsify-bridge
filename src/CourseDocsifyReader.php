@@ -373,9 +373,12 @@ class CourseDocsifyReader
             $layout = str_replace('{heading}', $group['heading'], $layout);
             foreach ($group['links'] as $link) {
                 $at = strpos($layout, '{link}');
-                // an icon kept in the layout ([fa="calendar"][/fa]{link}): the link's icon image goes
+                // an icon kept in the layout ([fa="calendar"][/fa]{link}): the link's icon image goes; otherwise an icon
+                // image becomes the icon's shortcode
                 if (str_ends_with(substr($layout, 0, $at), '[/fa]')) {
                     $link = preg_replace('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/[^)]*\)/', '', $link);
+                } else {
+                    $link = self::iconLinkToGrav($link);
                 }
                 $layout = substr($layout, 0, $at) . $link . substr($layout, $at + strlen('{link}'));
             }
@@ -389,11 +392,25 @@ class CourseDocsifyReader
     }
 
     // A link group as Open Course Space writes it: a heading, then a link on each line
+    // A sidebar link with an icon image in front, as the converter and the Starter Kits write them → the theme's icon
+    // before the link: [![Calendar Icon](https://api.iconify.design/fa/calendar.svg?…)Calendar](…) → [fa="calendar"][/fa][Calendar](…)
+    private static function iconLinkToGrav(string $link): string
+    {
+        if (preg_match('/^\[(!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/[^)]*\))\s*/', $link, $found) !== 1) {
+            return $link;
+        }
+        $icon = trim(Embeds::iconsToGrav($found[1]));
+        if (!str_starts_with($icon, '[fa=')) {
+            return $link;
+        }
+        return $icon . '[' . substr($link, strlen($found[0]));
+    }
+
     private function groupText(array $group): string
     {
         $lines = ['## ' . $group['heading']];
         foreach ($group['links'] as $link) {
-            $lines[] = $link . '  ';
+            $lines[] = self::iconLinkToGrav($link) . '  ';
         }
         return rtrim(implode("\n", $lines));
     }
