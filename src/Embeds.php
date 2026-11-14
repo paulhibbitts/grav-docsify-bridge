@@ -15,6 +15,8 @@ namespace OPG;
 //   [h5p url="…" /] or [h5p]…[/h5p] → an H5P iframe and its resizer script, as in the Starter Kits
 //   [fa="calendar-o"][/fa] → a Font Awesome icon in Docsify-This's own form (:far fa-calendar fa-fw:), kept on its
 //     line, since icons sit inside headings and links
+//   [badge]Due Friday[/badge] or [badge label="Due Friday"][/badge] → the Starter Kits' badge (<span class='badge'>)
+// Guides and courses use the same theme (Quark 2 Open Publishing), so they share all of these.
 class Embeds
 {
     private const NOTE = 'grav-embed';
@@ -23,6 +25,13 @@ class Embeds
 
     public static function toDocsify(string $markdown): string
     {
+        // Grav's summary break (=== on a line of its own, as in a week's page) isn't shown: kept in a hidden note
+        $markdown = preg_replace_callback('/(?<=\n\n)===[ \t]*(?=\n|$)/', function ($match) {
+            return self::hiddenLine($match[0]);
+        }, $markdown);
+        // the badge (the label form is marked, so it goes back the same way)
+        $markdown = preg_replace('/\[badge\](.*?)\[\/badge\]/', "<span class='badge'>$1</span>", $markdown);
+        $markdown = preg_replace('/\[badge label="([^"]*)"\]\[\/badge\]/', "<span class='badge' data-grav='label'>$1</span>", $markdown);
         $markdown = preg_replace_callback('/\[fa=?"?([a-z0-9-]+)"?[^\]]*\](?:\[\/fa\])?/', [self::class, 'icon'], $markdown);
         $patterns = [
             '/\[googleslides((?: [^\]]*)?)\](.*?)\[\/googleslides\]/' => 'slides',
@@ -63,6 +72,16 @@ class Embeds
             }, $markdown, -1, $count, PREG_OFFSET_CAPTURE);
         }
         return $markdown;
+    }
+
+    // A part of another page shown here ([plugin:page-inject](…)) only works in Grav: kept in a hidden note, and set
+    // aside with the code (see Helpers::hideCode) so its link isn't converted
+    public static function hideInjectLines(string $markdown, array &$codeParts): string
+    {
+        return preg_replace_callback('/^\[plugin:page-inject\]\([^)]*\)[ \t]*$/m', function ($match) use (&$codeParts) {
+            $codeParts[] = self::hiddenLine($match[0]);
+            return Helpers::CODE_MARK . (count($codeParts) - 1) . Helpers::CODE_MARK;
+        }, $markdown);
     }
 
     // Whether $position is on a line starting with > (a quote or callout)
@@ -235,7 +254,16 @@ class Embeds
         }, $markdown);
         // icons first: their note and icon share a line
         $markdown = preg_replace('/<!-- ' . self::NOTE . ': (\[fa[^\n]*?) -->:fa[srb] fa-[a-z0-9-]+ fa-fw:/', '$1', $markdown);
-        return preg_replace('/\n?(> )?<!-- ' . self::NOTE . ': (.*?) -->\n(?:> )?[^\n]*\n?(?(1)> )/', '$2', $markdown);
+        $markdown = preg_replace('/\n?(> )?<!-- ' . self::NOTE . ': (.*?) -->\n(?:> )?[^\n]*\n?(?(1)> )/', '$2', $markdown);
+        // badges: the label form, then any other (spaces inside are left out)
+        $markdown = preg_replace("/<span class='badge' data-grav='label'>(.*?)<\/span>/", '[badge label="$1"][/badge]', $markdown);
+        $markdown = preg_replace('/<span class=([\'"])badge\1>\s*(.*?)\s*<\/span>/', '[badge]$2[/badge]', $markdown);
+        // a link button made in Docsify: [Quiz due Jun 4th](https://example.org/quiz ':class=button')
+        // → [button label="Quiz due Jun 4th" url="https://example.org/quiz" /] ((?<!!): a link, not an image)
+        $markdown = preg_replace_callback('/(?<!!)\[([^\]]+)\]\(([^)\s]+) [\'"]:class=button[\'"]\)/', function ($match) {
+            return '[button label="' . str_replace('"', '&quot;', $match[1]) . '" url="' . $match[2] . '" /]';
+        }, $markdown);
+        return $markdown;
     }
 
     // Embedded pages written in Docsify as HTML (no hidden note) → Grav's embed shortcodes, as Grav 2 shows a raw

@@ -132,6 +132,27 @@ class Helpers
         ];
     }
 
+    // A card on the Guides or Courses page, as Quark 2 Open Publishing shows them: an image linking to the page (or ''),
+    // the title as a link (an <h2>, so cards line up), then lines of text.
+    // $page: the Docsify page, e.g. 'cpt363-basic/home'; $image: its address from the site's top
+    public static function card(string $page, string $title, string $image, string $alt, array $text, string $badge = ''): array
+    {
+        $card = ['<div class="card">', ''];
+        if ($image !== '') {
+            $card[] = '[![' . $alt . '](' . $image . ' ":no-zoom")](' . $page . '.md)';
+            $card[] = '';
+        }
+        $card[] = '<h2><a href="#/' . $page . '">' . $title . '</a>' . $badge . '</h2>';
+        $card[] = '';
+        foreach ($text as $line) {
+            $card[] = $line;
+            $card[] = '';
+        }
+        $card[] = '</div>';
+        $card[] = '';
+        return $card;
+    }
+
     // Marks text the converter adds for Docsify (titles, cards, back links …), so it can be told apart from
     // the author's own text on the way back
     public static function generated(array $lines): array

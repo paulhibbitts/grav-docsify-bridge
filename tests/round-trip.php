@@ -7,6 +7,7 @@
 //   grav-guides    – the Grav Open Publishing Space skeleton's two guides (also tested renamed to guide.md and guide-list.md)
 //   grav-extras    – a tiny guide with cases that once came back changed (Markdown-version links, banners, classes …)
 //   01.cpt363-basic – a course in its own folder: the Grav Open Course Space skeleton's CPT363-1
+//   03.cpt363-advanced – CPT363-3, organised by weekly units (only the pages that are converted)
 //   docsify-guide  – the Docsify-This Guide Site template
 //   docsify-course – the Docsify Open Course Starter Kit (its docs folder, without assets)
 // (a whole Open Course Space site of two courses is put together from these in test 5)
@@ -71,6 +72,11 @@ copyFolder("$work/kit-grav/01.my-course", "$work/site/02.my-course");
 convert('courses2docsify', "$work/site", "$work/site-docsify");
 convert('courses2grav', "$work/site-docsify", "$work/site-back");
 $failed += report('Open Course Space site comes back identical', sameFiles("$work/site", "$work/site-back"));
+
+// 6. A course organised by weekly units → Docsify → Grav: the same course folder, file for file
+convert('course2docsify', "$samples/03.cpt363-advanced", "$work/weeks-docsify");
+convert('course2grav', "$work/weeks-docsify", "$work/weeks-back");
+$failed += report('Grav course of weekly units comes back identical', sameFiles("$samples/03.cpt363-advanced", "$work/weeks-back/03.cpt363-advanced"));
 
 removeFolder($work);
 if ($failed === 0) {

@@ -364,30 +364,21 @@ class DocsifyWriter
     private function guideCard(Page $guide): array
     {
         $guideSlug = $guide->slug();
-        $card = ['<div class="card">', ''];
-        $cover = $guide->setting('cover_image');
-        if ($cover !== '') {
-            $alt = $guide->setting('cover_image_alt');
-            if ($alt === '') {
-                $alt = $guide->title();
-            }
-            $card[] = '[![' . $alt . '](' . $guideSlug . '/' . $cover . ' ":no-zoom")](' . $guideSlug . '/README.md)';
-            $card[] = '';
+        $image = '';
+        if ($guide->setting('cover_image') !== '') {
+            $image = $guideSlug . '/' . $guide->setting('cover_image');
+        }
+        $alt = $guide->setting('cover_image_alt');
+        if ($alt === '') {
+            $alt = $guide->title();
         }
         // a badge such as "Draft" goes inside the title, so the cards still line up
         $badge = '';
         if ($guide->setting('badge_label') !== '') {
             $badge = ' <span class="badge">' . $guide->setting('badge_label') . '</span>';
         }
-        $card[] = '<h2><a href="#/' . $guideSlug . '/README">' . $guide->title() . '</a>' . $badge . '</h2>';
-        $card[] = '';
-        $card[] = $guide->setting('subtitle');
-        $card[] = '';
-        $card[] = '<small>' . $guide->setting('authors') . '<br>' . $guide->setting('edition') . $this->updated($guide) . '</small>';
-        $card[] = '';
-        $card[] = '</div>';
-        $card[] = '';
-        return $card;
+        $text = [$guide->setting('subtitle'), '<small>' . $guide->setting('authors') . '<br>' . $guide->setting('edition') . $this->updated($guide) . '</small>'];
+        return Helpers::card($guideSlug . '/README', $guide->title(), $image, $alt, $text, $badge);
     }
 
     // The Guides page (Grav's Guides List page), with a card for each guide
@@ -451,6 +442,7 @@ class DocsifyWriter
     {
         $codeParts = [];
         $markdown = Helpers::hideCode($markdown, $codeParts);
+        $markdown = Embeds::hideInjectLines($markdown, $codeParts);
         $markdown = Embeds::toDocsify($markdown);
         $markdown = Callouts::toDocsify($markdown);
         $markdown = Links::newTabToDocsify($markdown);

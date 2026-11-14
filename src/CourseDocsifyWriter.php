@@ -69,10 +69,10 @@ class CourseDocsifyWriter
         }
         $this->writeFile('_navbar.md', implode("\n", $navbar));
         if ($this->top !== '') {
-            // in a site of several courses, a way back to the Courses page (the site's home page)
-            file_put_contents($this->out . '/_navbar.md', "- [All Courses](#/)\n" . file_get_contents($this->out . '/_navbar.md'));
+            // in a site of several courses, a way back to the Courses page (the site's home page: links start at the top)
+            file_put_contents($this->out . '/_navbar.md', "- [All Courses](home.md)\n" . file_get_contents($this->out . '/_navbar.md'));
         }
-        $this->writeSidebar($modulesPage, $sidebarGroups, $site->courseHome !== null);
+        $this->writeSidebar($site, $sidebarGroups);
         if ($site->courseFooter !== null) {
             $footer = trim($this->convert($this->withImagesFolder($site->courseFooter), $this->course, '_footer.md'));
             $this->writeFile('_footer.md', implode("\n", [$this->note($site->courseFooter), '', $footer]));
@@ -331,15 +331,20 @@ class CourseDocsifyWriter
 
     // The modules in order, then any link groups from the course sidebar. With a home page, the Modules page's own
     // settings are kept here (it has no Docsify page of its own).
-    private function writeSidebar(Page $modulesPage, array $groups, bool $hasHome): void
+    private function writeSidebar(Site $site, array $groups): void
     {
+        $modulesPage = $site->modulesPage;
         $lines = [];
-        if ($hasHome) {
+        if ($site->courseHome !== null) {
             $extra = [];
             if (trim($modulesPage->body) !== '') {
                 $extra['body'] = trim($modulesPage->body);
             }
             $lines = [Helpers::gravNote($modulesPage, array_merge($extra, self::spacing($modulesPage))), ''];
+        }
+        if ($this->top !== '') {
+            // in a site of several courses, the course's name first, in bold (not a link), as for guides
+            $lines = array_merge($lines, Helpers::generated(['**' . $site->coursePage->title() . '**']), ['']);
         }
         foreach ($modulesPage->children as $module) {
             // hidden or unpublished modules aren't listed
@@ -495,18 +500,9 @@ class CourseDocsifyWriter
     private static function courseCard(Site $course, string $banner): array
     {
         $slug = Helpers::slugFromFolder($course->courseFolder);
-        $card = ['<div class="card">', ''];
-        if ($banner !== '') {
-            $card[] = '[![' . $course->coursePage->title() . '](' . $slug . '/' . $banner . ' ":no-zoom")](' . $slug . '/home.md)';
-            $card[] = '';
-        }
-        $card[] = '<h2><a href="#/' . $slug . '/home">' . $course->coursePage->title() . '</a></h2>';
-        $card[] = '';
-        $card[] = $course->coursePage->setting('description');
-        $card[] = '';
-        $card[] = '</div>';
-        $card[] = '';
-        return $card;
+        $title = $course->coursePage->title();
+        $image = $banner !== '' ? $slug . '/' . $banner : '';
+        return Helpers::card($slug . '/home', $title, $image, $title, [$course->coursePage->setting('description')]);
     }
 
     // Grav Markdown → Docsify Markdown, as for guides: embeds, callouts, links between the course's pages, then links
@@ -515,20 +511,7 @@ class CourseDocsifyWriter
     {
         $codeParts = [];
         $markdown = Helpers::hideCode($markdown, $codeParts);
-        // a part of another page shown here ([plugin:page-inject](…)) only works in Grav: kept in a hidden note,
-        // set aside with the code so its link isn't converted
-        $markdown = preg_replace_callback('/^\[plugin:page-inject\]\([^)]*\)[ \t]*$/m', function ($match) use (&$codeParts) {
-            $codeParts[] = Embeds::hiddenLine($match[0]);
-            return Helpers::CODE_MARK . (count($codeParts) - 1) . Helpers::CODE_MARK;
-        }, $markdown);
-        // Grav's summary break (=== on a line of its own, as in a week's page) isn't shown: kept in a hidden note
-        $markdown = preg_replace_callback('/(?<=\n\n)===[ \t]*(?=\n|$)/', function ($match) {
-            return Embeds::hiddenLine($match[0]);
-        }, $markdown);
-        // Open Course Space's badge → the Starter Kits' badge: [badge]Due Friday[/badge], or [badge label="Due Friday"][/badge]
-        // (marked, so it goes back the same way)
-        $markdown = preg_replace('/\[badge\](.*?)\[\/badge\]/', "<span class='badge'>$1</span>", $markdown);
-        $markdown = preg_replace('/\[badge label="([^"]*)"\]\[\/badge\]/', "<span class='badge' data-grav='label'>$1</span>", $markdown);
+        $markdown = Embeds::hideInjectLines($markdown, $codeParts);
         $markdown = Embeds::toDocsify($markdown);
         $markdown = Callouts::toDocsify($markdown);
         $markdown = Links::newTabToDocsify($markdown);

@@ -301,9 +301,6 @@ class CourseDocsifyReader
         $text = Helpers::hideCode($text, $codeParts);
         $text = Callouts::toGrav($text);
         $text = Embeds::toGrav($text);
-        // the Starter Kits' badge, written from Open Course Space's [badge]label[/badge]
-        $text = preg_replace("/<span class='badge'>(.*?)<\/span>/", '[badge]$1[/badge]', $text);
-        $text = preg_replace("/<span class='badge' data-grav='label'>(.*?)<\/span>/", '[badge label="$1"][/badge]', $text);
         $text = Links::mapToGrav($text, $this->addresses, $note['where']['links'] ?? []);
         // relative links to Grav-only pages, made full: back as they were written (../all-web-picks-of-the-week)
         foreach ($note['where']['links'] ?? [] as $link) {
@@ -630,8 +627,6 @@ class CourseDocsifyReader
         $markdown = Embeds::toGrav($markdown);
         $markdown = Embeds::iconsToGrav($markdown);
         $markdown = Embeds::iframesToGrav($markdown);
-        $markdown = $this->buttonsToGrav($markdown);
-        $markdown = $this->badgesToGrav($markdown);
         $markdown = Links::imageOptionsToGrav($markdown);
         $markdown = Links::mapToGrav($markdown, $this->addresses);
         $markdown = Links::newTabToGrav($markdown);
@@ -720,8 +715,8 @@ class CourseDocsifyReader
         $navbar = [];
         preg_match_all('/^\s*[-*] \[([^\]]+)\]\(([^)\s]+)\)/m', $text, $found, PREG_SET_ORDER);
         foreach ($found as $match) {
-            // in a site of several courses, the way back to the Courses page
-            if ($this->top !== '' && $match[2] === '#/') {
+            // in a site of several courses, the way back to the Courses page (home.md at the site's top; #/ before)
+            if ($this->top !== '' && in_array($match[2], ['home.md', '#/'], true)) {
                 continue;
             }
             $file = $this->siteFile($match[2]);
@@ -776,25 +771,6 @@ class CourseDocsifyReader
             }
             $this->addNote($file . ' isn\'t in the sidebar or navbar, so it wasn\'t converted');
         }
-    }
-
-    // A Docsify link button becomes Open Course Space's [button] shortcode, which the theme shows as a button.
-    // Example: [Quiz due Jun 4th](https://example.org/quiz ':class=button') → [button label="Quiz due Jun 4th" url="https://example.org/quiz" /]
-    private function buttonsToGrav(string $markdown): string
-    {
-        // (?<!!): a link, not an image
-        $pattern = '/(?<!!)\[([^\]]+)\]\(([^)\s]+) [\'"]:class=button[\'"]\)/';
-        return preg_replace_callback($pattern, function ($match) {
-            $label = str_replace('"', '&quot;', $match[1]);
-            return '[button label="' . $label . '" url="' . $match[2] . '" /]';
-        }, $markdown);
-    }
-
-    // A Docsify badge (a small label, such as a due date) becomes Open Course Space's [badge] shortcode.
-    // Example: <span class='badge'> Tue Jun 12th</span> → [badge]Tue Jun 12th[/badge]
-    private function badgesToGrav(string $markdown): string
-    {
-        return preg_replace('/<span class=([\'"])badge\1>\s*(.*?)\s*<\/span>/', '[badge]$2[/badge]', $markdown);
     }
 
     private function addNote(string $note): void
