@@ -628,8 +628,6 @@ class CourseDocsifyReader
         return $page;
     }
 
-    // A menu page (Schedule, Topics …): its navbar label as its title, and a # heading that repeats it left out (Grav
-    // shows the title). A different heading becomes the title, with the label as its menu name.
     // Each heading from ## to ##### one level down (## Handouts → ### Handouts), leaving code as it is
     private static function headingsDown(string $markdown): string
     {
@@ -639,6 +637,8 @@ class CourseDocsifyReader
         return Helpers::showCode($markdown, $codeParts);
     }
 
+    // A menu page (Schedule, Topics …): its navbar label as its title, and a # heading that repeats it left out (Grav
+    // shows the title). A different heading becomes the title, with the label as its menu name.
     private function menuPageFromDocsify(string $file, string $number): Page
     {
         $label = $this->navbar[$file];
