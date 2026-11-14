@@ -2,7 +2,8 @@
 namespace OPG;
 
 // Reads an Open Course Space course from its own folder: its settings (course.md), the Modules page (module.md) with
-// a page per module, the home page and the parts it shows, the menu pages (Schedule, Resources …), the header image,
+// a page per module – or, in a course without one, its Weekly Units (a blog page, blog.md, with a page per week, used
+// as the modules) – the home page and the parts it shows, the menu pages (Schedule, Resources …), the header image,
 // the course sidebar and the footer. Other pages, such as a blog, aren't part of the modules, so they're listed in
 // $notes.
 class CourseGravReader extends GravReader
@@ -15,14 +16,23 @@ class CourseGravReader extends GravReader
         $this->notes = [];
         $site->courseFolder = basename($pagesDir);
         $site->coursePage = $this->readPage($pagesDir, '', 'course.md', 'course');
+        // a course without a Modules page is organised by weekly units: its first blog page
+        $unitsFolder = '';
+        if (count(glob($pagesDir . '/*/module.md')) === 0) {
+            foreach ($this->subfolders($pagesDir) as $name) {
+                if ($unitsFolder === '' && Helpers::isNumbered($name) && $this->markdownFile($pagesDir . '/' . $name) === 'blog.md') {
+                    $unitsFolder = $name;
+                }
+            }
+        }
         foreach ($this->subfolders($pagesDir) as $name) {
             $folder = $pagesDir . '/' . $name;
             $file = $this->markdownFile($folder);
             if ($file === '') {
                 continue;
             }
-            if ($file === 'module.md') {
-                $site->modulesPage = $this->readModules($pagesDir, $name);
+            if ($file === 'module.md' || $name === $unitsFolder) {
+                $site->modulesPage = $this->readModules($pagesDir, $name, $file);
                 continue;
             }
             if ($name === 'sidebar') {
@@ -57,14 +67,15 @@ class CourseGravReader extends GravReader
         return $site;
     }
 
-    // The Modules page and its module pages, in Grav's order
-    private function readModules(string $pagesDir, string $modulesFolder): Page
+    // The Modules page and its module pages, in Grav's order – or the Weekly Units page and its weeks (week-01 …),
+    // in name order
+    private function readModules(string $pagesDir, string $modulesFolder, string $listFile): Page
     {
-        $modulesPage = $this->readPage($pagesDir, $modulesFolder, 'module.md', 'modules');
+        $modulesPage = $this->readPage($pagesDir, $modulesFolder, $listFile, 'modules');
         foreach ($this->subfolders($pagesDir . '/' . $modulesFolder) as $name) {
             $folder = $modulesFolder . '/' . $name;
             $file = $this->markdownFile($pagesDir . '/' . $folder);
-            if ($file !== '' && Helpers::isNumbered($name)) {
+            if ($file !== '' && (Helpers::isNumbered($name) || $listFile === 'blog.md')) {
                 $modulesPage->children[] = $this->readPage($pagesDir, $folder, $file, 'module');
             }
         }

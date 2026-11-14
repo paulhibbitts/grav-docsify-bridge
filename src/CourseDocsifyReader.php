@@ -78,8 +78,8 @@ class CourseDocsifyReader
         $modules = [];
         foreach ($notedPages as $file => $note) {
             $gravFile = $note['where']['file'];
-            if (basename($gravFile) === 'module.md') {
-                // the Modules page's note: in _sidebar.md, or in home.md when the course has no home page
+            if (in_array(basename($gravFile), ['module.md', 'blog.md'], true)) {
+                // the Modules (or Weekly Units) page's note: in _sidebar.md, or in home.md when the course has no home page
                 $site->modulesPage = $this->notedPage('modules', $note, '');
                 $site->modulesPage->body = $note['where']['body'] ?? '';
                 continue;
@@ -130,10 +130,11 @@ class CourseDocsifyReader
         return $site;
     }
 
-    // A module's page is in a folder inside the Modules page's folder: '02.modules/02.module-01/course-page.md'
+    // A module's page is in a folder inside the Modules page's folder: '02.modules/02.module-01/course-page.md', or a
+    // week's inside the Weekly Units page's folder: '02.weekly-units/week-01/item.md'
     private static function isModuleFile(string $gravFile): bool
     {
-        return basename($gravFile) === 'course-page.md' && substr_count($gravFile, '/') === 2;
+        return in_array(basename($gravFile), ['course-page.md', 'item.md'], true) && substr_count($gravFile, '/') === 2;
     }
 
     // The course's folder, settings (course.md) and header image, from the home page's note. Without them (a course
@@ -304,6 +305,12 @@ class CourseDocsifyReader
         $text = preg_replace("/<span class='badge'>(.*?)<\/span>/", '[badge]$1[/badge]', $text);
         $text = preg_replace("/<span class='badge' data-grav='label'>(.*?)<\/span>/", '[badge label="$1"][/badge]', $text);
         $text = Links::mapToGrav($text, $this->addresses, $note['where']['links'] ?? []);
+        // relative links to Grav-only pages, made full: back as they were written (../all-web-picks-of-the-week)
+        foreach ($note['where']['links'] ?? [] as $link) {
+            if (str_starts_with((string)$link[0], 'http') && ($at = strpos($text, '](' . $link[0])) !== false) {
+                $text = substr_replace($text, '](' . $link[1], $at, strlen('](' . $link[0]));
+            }
+        }
         $site = $note['where']['site'] ?? $this->siteUrl;
         if ($site !== '') {
             $text = str_replace('](' . rtrim($site, '/') . '/', '](/', $text);

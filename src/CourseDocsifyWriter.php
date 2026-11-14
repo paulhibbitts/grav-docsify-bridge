@@ -265,7 +265,7 @@ class CourseDocsifyWriter
     // Returns the sidebar groups.
     private function writeContact(Page $sidebarPage): array
     {
-        $text = trim($this->convert($this->withImagesFolder($sidebarPage), $this->course, 'contact.md'));
+        $text = trim($this->convert($this->withImagesFolder($sidebarPage), $this->course . '/sidebar', 'contact.md'));
         $groups = [];
         $contact = [];
         foreach (preg_split('/^(?=#{1,6}\s)/m', $text) as $section) {
@@ -391,11 +391,15 @@ class CourseDocsifyWriter
         return ['site' => $this->siteUrl];
     }
 
-    // The header image Open Course Space shows for a module (header_image: true): header_image_file, or the page's first
-    // image. Returns its address in images/, or '' when there isn't one.
+    // The header image Open Course Space shows for a module (header_image: true) or a week (unless header_image: false):
+    // header_image_file, or the page's first image. Returns its address in images/, or '' when there isn't one.
     private function headerImage(Page $page): string
     {
-        if (empty($page->meta['header_image']) || count($page->images) === 0) {
+        $isShown = !empty($page->meta['header_image']);
+        if ($page->file === 'item.md') {
+            $isShown = ($page->meta['header_image'] ?? true) !== false;
+        }
+        if (!$isShown || count($page->images) === 0) {
             return '';
         }
         $file = $page->setting('header_image_file');
@@ -517,6 +521,10 @@ class CourseDocsifyWriter
             $codeParts[] = Embeds::hiddenLine($match[0]);
             return Helpers::CODE_MARK . (count($codeParts) - 1) . Helpers::CODE_MARK;
         }, $markdown);
+        // Grav's summary break (=== on a line of its own, as in a week's page) isn't shown: kept in a hidden note
+        $markdown = preg_replace_callback('/(?<=\n\n)===[ \t]*(?=\n|$)/', function ($match) {
+            return Embeds::hiddenLine($match[0]);
+        }, $markdown);
         // Open Course Space's badge → the Starter Kits' badge: [badge]Due Friday[/badge], or [badge label="Due Friday"][/badge]
         // (marked, so it goes back the same way)
         $markdown = preg_replace('/\[badge\](.*?)\[\/badge\]/', "<span class='badge'>$1</span>", $markdown);
@@ -528,7 +536,7 @@ class CourseDocsifyWriter
         foreach (Callouts::unknownShortcodes($markdown) as $name) {
             $this->warnings[] = $where . ': the [' . $name . '] shortcode only works in Grav (left as it is)';
         }
-        $markdown = Links::gravOnly($markdown, $gravPath, $this->siteUrl, $where, $this->warnings);
+        $markdown = Links::gravOnly($markdown, $gravPath, $this->siteUrl, $where, $this->warnings, $this->pageLinks);
         return Helpers::showCode($markdown, $codeParts);
     }
 

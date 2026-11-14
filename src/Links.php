@@ -134,13 +134,14 @@ class Links
     // ?embedded=true, and relative links such as ../readme. With the original site's address they become full
     // links to it; without one they're left as they are and listed in $warnings.
     // $pagePath: the page's own address on the Grav site, e.g. /open-education-essentials (relative links start there)
-    public static function gravOnly(string $markdown, string $pagePath, string $siteUrl, string $where, array &$warnings): string
+    // $originals: when given, each relative link made full is added as [full link, relative link], so it can go back
+    public static function gravOnly(string $markdown, string $pagePath, string $siteUrl, string $where, array &$warnings, ?array &$originals = null): string
     {
         $siteUrl = rtrim($siteUrl, '/');
         // [text](/path…), [text](../path…) and [text](./path…), images included, maybe followed by a "title" or an
         // option such as ':target=_blank' (not //example.org, an address without https:)
         $pattern = '/(!?)\[([^\]]*)\]\(((?:\/(?!\/)|\.\.?\/)[^)\s]*)( "[^"]*"| \'[^\']*\')?\)/';
-        return preg_replace_callback($pattern, function ($match) use ($pagePath, $siteUrl, $where, &$warnings) {
+        return preg_replace_callback($pattern, function ($match) use ($pagePath, $siteUrl, $where, &$warnings, &$originals) {
             $url = $match[3];
             $option = '';
             if (isset($match[4])) {
@@ -152,6 +153,9 @@ class Links
             if ($siteUrl === '') {
                 $warnings[] = $where . ': "' . $match[3] . '" only works on the Grav site (add the original site address to link to it there)';
                 return $match[0];
+            }
+            if ($originals !== null && !str_starts_with($match[3], '/')) {
+                $originals[] = [$siteUrl . $url, $match[3]];
             }
             return $match[1] . '[' . $match[2] . '](' . $siteUrl . $url . $option . ')';
         }, $markdown);
