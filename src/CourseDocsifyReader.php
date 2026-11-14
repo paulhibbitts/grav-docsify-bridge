@@ -619,9 +619,10 @@ class CourseDocsifyReader
             }
         }
         $page->body = $this->toGravText($body, $page, $file);
-        // the page starts with its description, as Open Course Space's own modules do
+        // the page starts with its description, as Open Course Space's own modules do, with the page's sections a level
+        // below it (## → ###), so the list of sections beside the page doesn't start with the description
         if (isset($settings['description'])) {
-            $page->body = '## **' . $settings['description'] . "**\n\n" . $page->body;
+            $page->body = '## **' . $settings['description'] . "**\n\n" . self::headingsDown($page->body);
         }
         $page->yaml = $this->yaml($page->meta);
         return $page;
@@ -629,6 +630,15 @@ class CourseDocsifyReader
 
     // A menu page (Schedule, Topics …): its navbar label as its title, and a # heading that repeats it left out (Grav
     // shows the title). A different heading becomes the title, with the label as its menu name.
+    // Each heading from ## to ##### one level down (## Handouts → ### Handouts), leaving code as it is
+    private static function headingsDown(string $markdown): string
+    {
+        $codeParts = [];
+        $markdown = Helpers::hideCode($markdown, $codeParts);
+        $markdown = preg_replace('/^(#{2,5})(\s)/m', '#$1$2', $markdown);
+        return Helpers::showCode($markdown, $codeParts);
+    }
+
     private function menuPageFromDocsify(string $file, string $number): Page
     {
         $label = $this->navbar[$file];
