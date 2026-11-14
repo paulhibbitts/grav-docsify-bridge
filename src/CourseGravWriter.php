@@ -1,14 +1,19 @@
 <?php
 namespace OPG;
 
-// Writes a course as Open Course Hub pages: the home page and its parts, the Modules page with a folder per module,
-// the menu pages, the course sidebar and the footer, each with its images beside it
+// Writes a course as an Open Course Space course folder: its settings (course.md), header image, home page and its
+// parts, the Modules page with a folder per module, the menu pages, the course sidebar and the footer, each with its
+// images beside it
 class CourseGravWriter
 {
     public function write(Site $site, string $out): void
     {
         $pageWriter = new GravWriter();
-        $pages = [];
+        $out .= '/' . $site->courseFolder;
+        $pages = [$site->coursePage];
+        if ($site->headerImage !== null) {
+            $pages[] = $site->headerImage;
+        }
         if ($site->courseHome !== null) {
             $pages[] = $site->courseHome;
             $pages = array_merge($pages, $site->courseHome->children);

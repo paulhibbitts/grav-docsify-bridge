@@ -12,7 +12,7 @@ namespace OPG;
 //     (![alt](image.jpg ':class=banner-image')), as Docsify ignores Grav's image options
 //   [safe-email …]address[/safe-email] → an email link
 //   [button label="…" url="…" /] → a link button, as in the Starter Kits ([label](url ':class=button'))
-//   [h5p url="…" /] → an H5P iframe and its resizer script, as in the Starter Kits
+//   [h5p url="…" /] or [h5p]…[/h5p] → an H5P iframe and its resizer script, as in the Starter Kits
 //   [fa="calendar-o"][/fa] → a Font Awesome icon in Docsify-This's own form (:far fa-calendar fa-fw:), kept on its
 //     line, since icons sit inside headings and links
 class Embeds
@@ -34,6 +34,7 @@ class Embeds
             '/\[safe-email((?: [^\]]*)?)\](.*?)\[\/safe-email\]/' => 'email',
             '/\[button((?: [^\]]*)?)\s*\/\]/' => 'button',
             '/\[h5p((?: [^\]]*)?)\s*\/\]/' => 'h5p',
+            '/\[h5p((?: [^\]]*)?)\](.*?)\[\/h5p\]/' => 'h5p',
             '/!\[([^\]]*)\]\(([^)\s?]+\?cropZoom=[0-9]+,[0-9]+)\)/' => 'banner',
         ];
         foreach ($patterns as $pattern => $kind) {
@@ -108,7 +109,10 @@ class Embeds
             case 'email':
                 return '[' . $address . '](mailto:' . $address . ')';
             case 'h5p':
-                // only url="…" works outside Grav ([h5p id="…"] needs the site's settings)
+                // url="…" or the address between the tags works outside Grav ([h5p id="…"] needs the site's settings)
+                if ($url === '' && str_starts_with($address, 'http')) {
+                    $url = $address;
+                }
                 if ($url === '') {
                     return '';
                 }
@@ -237,7 +241,7 @@ class Embeds
     // Embedded pages written in Docsify as HTML (no hidden note) → Grav's embed shortcodes, as Grav 2 shows a raw
     // <iframe> as text: Google Slides → [googleslides], YouTube → [youtube], H5P → [h5p] (which resizes it, so H5P's
     // resizer script is left out), anything else → [iframe url="…" /] (16:9 inside the Starter Kits'
-    // video-container-16by9, otherwise Open Matter's usual 4:3)
+    // video-container-16by9, otherwise the shortcode's own size)
     public static function iframesToGrav(string $markdown): string
     {
         // an iframe, maybe in a <div>, maybe followed by H5P's resizer script
@@ -273,28 +277,15 @@ class Embeds
     // image option).
     public static function iconsToGrav(string $markdown): string
     {
-        // Font Awesome 6 names → their Font Awesome 4 names, as Open Matter uses Font Awesome 4
-        $renamed = [
-            'circle-check' => 'check-circle', 'circle-info' => 'info-circle', 'circle-question' => 'question-circle',
-            'triangle-exclamation' => 'exclamation-triangle', 'file-lines' => 'file-text', 'pen-to-square' => 'pencil-square',
-            'magnifying-glass' => 'search', 'house' => 'home', 'gear' => 'cog', 'xmark' => 'times',
-            'arrow-up-right-from-square' => 'external-link', 'up-right-from-square' => 'external-link', 'keyboard' => 'keyboard-o',
-        ];
-        $markdown = preg_replace_callback('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa6-(solid|regular|brands)\/([a-z0-9-]+)\.svg[^)\s]*\)/', function ($match) use ($renamed) {
+        $markdown = preg_replace_callback('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa6-(solid|regular|brands)\/([a-z0-9-]+)\.svg[^)\s]*\)/', function ($match) {
             $name = $match[2];
-            if (isset($renamed[$name])) {
-                $name = $renamed[$name];
-            }
             if ($match[1] === 'regular' && !str_ends_with($name, '-o')) {
                 $name .= '-o';
             }
             return '[fa="' . $name . '"][/fa] ';
         }, $markdown);
-        return preg_replace_callback('/:(fa[srb]) fa-([a-z0-9-]+)(?: fa-[a-z0-9-]+)*:/', function ($match) use ($renamed) {
+        return preg_replace_callback('/:(fa[srb]) fa-([a-z0-9-]+)(?: fa-[a-z0-9-]+)*:/', function ($match) {
             $name = $match[2];
-            if (isset($renamed[$name])) {
-                $name = $renamed[$name];
-            }
             if ($match[1] === 'far' && !str_ends_with($name, '-o')) {
                 $name .= '-o';
             }

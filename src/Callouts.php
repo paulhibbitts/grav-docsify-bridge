@@ -205,7 +205,7 @@ class Callouts
 
     // A <details> section written in Docsify becomes the [details] shortcode: Grav shows Markdown inside HTML as
     // plain text, all in one block, but it reads Markdown inside a shortcode. Sections in a Docsify-This accordion
-    // (<div class="accordion"> around them) get class="accordion", which Open Matter shows as accordion rows; the
+    // (<div class="accordion"> around them) get class="accordion", which the theme shows as accordion rows; the
     // div itself isn't needed in Grav.
     // Example: <details><summary>Usability</summary> … </details> → [details summary="Usability"] … [/details]
     private static function detailsToShortcode(string $markdown): string

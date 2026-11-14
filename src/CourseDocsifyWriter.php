@@ -1,13 +1,16 @@
 <?php
 namespace OPG;
 
-// Writes an Open Course Hub course as a Docsify course, laid out like the Docsify Open Course Starter Kit: home.md, a
-// page per module and menu page, images/, _sidebar.md (modules and LMS links), _navbar.md and _footer.md. Hidden notes
-// keep what's needed to go back to the same Grav pages (see CourseDocsifyReader).
+// Writes an Open Course Space course as a Docsify course, laid out like the Docsify Open Course Starter Kit and shown
+// like the course in Grav: home.md (with the course's header image and name), a page per module and menu page,
+// images/, _sidebar.md (modules and LMS links), _navbar.md and _footer.md. Hidden notes keep what's needed to go back
+// to the same Grav pages (see CourseDocsifyReader).
 class CourseDocsifyWriter
 {
     // Links that only work on the Grav site, and anything else worth checking (for conversion-notes.txt)
     public array $warnings = [];
+    // the header image's address in the course's images/ ('' when it has none), for its card on the Courses page
+    public string $bannerImage = '';
 
     private string $pagesDir;
     private string $out;
@@ -18,31 +21,39 @@ class CourseDocsifyWriter
     private array $copiedImages = [];
     // the links converted since the last hidden note was written, as [Docsify address, Grav address as written]
     private array $pageLinks = [];
+    // the course's address on the Grav site, e.g. '/cpt363-basic' (its pages' addresses start with it)
+    private string $course = '';
+    // in a site of several courses, the course's folder in Docsify, e.g. 'cpt363-basic/': links between pages start at
+    // the site's top, so they start with it ('' for a course on its own)
+    private string $top = '';
 
-    public function write(Site $site, string $pagesDir, string $out, string $siteUrl = ''): void
+    public function write(Site $site, string $pagesDir, string $out, string $siteUrl = '', string $top = ''): void
     {
+        $this->top = $top;
+        $this->bannerImage = '';
         $this->pagesDir = $pagesDir;
         $this->out = $out;
         $this->siteUrl = $siteUrl;
         $this->warnings = [];
         $this->copiedImages = [];
         $modulesPage = $site->modulesPage;
+        $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
 
         // every page's address first, so links between them are converted. The Modules page has no page of its own
         // (the sidebar lists the modules), so links to it go to the course home.
-        $modulesPath = '/' . $modulesPage->slug();
-        $this->addresses = ['/' => 'home.md', '/home' => 'home.md', $modulesPath => 'home.md'];
+        $modulesPath = $this->course . '/' . $modulesPage->slug();
+        $this->addresses = [$this->course => 'home.md', $this->course . '/home' => 'home.md', $modulesPath => 'home.md'];
         foreach ($modulesPage->children as $module) {
             $this->addresses[$modulesPath . '/' . $module->slug()] = $module->slug() . '.md';
         }
         foreach ($site->coursePages as $page) {
-            $this->addresses['/' . $page->slug()] = $page->slug() . '.md';
+            $this->addresses[$this->course . '/' . $page->slug()] = $page->slug() . '.md';
         }
 
         foreach ($modulesPage->children as $module) {
             $this->writeModule($module, $modulesPath);
         }
-        $this->writeHome($site->courseHome, $modulesPage);
+        $this->writeHome($site, $modulesPage);
 
         $navbar = [];
         foreach ($site->coursePages as $page) {
@@ -57,9 +68,13 @@ class CourseDocsifyWriter
             }
         }
         $this->writeFile('_navbar.md', implode("\n", $navbar));
+        if ($this->top !== '') {
+            // in a site of several courses, a way back to the Courses page (the site's home page)
+            file_put_contents($this->out . '/_navbar.md', "- [All Courses](#/)\n" . file_get_contents($this->out . '/_navbar.md'));
+        }
         $this->writeSidebar($modulesPage, $sidebarGroups, $site->courseHome !== null);
         if ($site->courseFooter !== null) {
-            $footer = trim($this->convert($this->withImagesFolder($site->courseFooter), '/', '_footer.md'));
+            $footer = trim($this->convert($this->withImagesFolder($site->courseFooter), $this->course, '_footer.md'));
             $this->writeFile('_footer.md', implode("\n", [$this->note($site->courseFooter), '', $footer]));
         }
     }
@@ -123,21 +138,24 @@ class CourseDocsifyWriter
         return Embeds::hiddenLine($firstLine) . $rest;
     }
 
-    // The course home: the home page's own text, with each part it shows ([plugin:page-inject](/home/_part)) in its
-    // place – this week's reminders (an alert box in Grav) in the Starter Kits' announcement box. Without a home page,
-    // the Modules page's title and description.
-    private function writeHome(?Page $home, Page $modulesPage): void
+    // The course home, shown as in Grav: the course's header image and its name, then the home page's own text with
+    // each part it shows ([plugin:page-inject](../home/_part)) in its place – this week's reminders (an alert box in
+    // Grav) in the Starter Kits' announcement box. Without a home page, the Modules page's title and description.
+    // Its hidden note also keeps the course's settings and header image, for the way back.
+    private function writeHome(Site $site, Page $modulesPage): void
     {
+        $home = $site->courseHome;
+        $extra = array_merge($this->siteNote(), $this->courseNote($site));
+        $banner = $this->banner($site->headerImage);
         if ($home === null) {
             $head = ['# ' . $modulesPage->title()];
             if ($modulesPage->setting('description') !== '') {
                 $head = array_merge($head, ['', $modulesPage->setting('description')]);
             }
-            $extra = $this->siteNote();
             if (trim($modulesPage->body) !== '') {
                 $extra['body'] = trim($modulesPage->body);
             }
-            $lines = array_merge([$this->note($modulesPage, $extra), ''], Helpers::generated($head));
+            $lines = array_merge([$this->note($modulesPage, $extra), ''], Helpers::generated(array_merge($banner, $head)));
             $this->writeFile('home.md', implode("\n", $lines));
             return;
         }
@@ -151,8 +169,7 @@ class CourseDocsifyWriter
         // the links in the home page's own text, kept apart from each part's links
         $homeLinks = [];
         foreach (explode("\n", $home->body) as $line) {
-            // (the part's path starts at the site, /home/_reminders, or at the page, ../home/_reminders, in Open Course Space)
-            if (preg_match('/^\[plugin:page-inject\]\((?:\.\.)?\/[^)]*\/([^\/)]+)\)\s*$/', trim($line), $found) === 1 && isset($parts[$found[1]])) {
+            if (preg_match('/^\[plugin:page-inject\]\(\.\.\/[^)]*\/([^\/)]+)\)\s*$/', trim($line), $found) === 1 && isset($parts[$found[1]])) {
                 $sections[] = $this->ownHomeText($ownText);
                 $ownText = [];
                 $homeLinks = array_merge($homeLinks, $this->pageLinks);
@@ -164,23 +181,60 @@ class CourseDocsifyWriter
         }
         $sections[] = $this->ownHomeText($ownText);
         $this->pageLinks = array_merge($homeLinks, $this->pageLinks);
-        // the page's title as its heading (Grav hides it, with the site's name in its header instead), so the page has
-        // an H1 like every other page. Its note comes last, so it holds the links of its own text.
-        $head = array_merge([$this->note($home, $this->siteNote()), ''], Helpers::generated(['# ' . $home->title()]), ['']);
+        // the course's name as the page's heading, as Open Course Space shows it. Its note comes last, so it holds the
+        // links of its own text.
+        $title = $home->title();
+        if ($site->coursePage !== null) {
+            $title = $site->coursePage->title();
+        }
+        $head = array_merge([$this->note($home, $extra), ''], Helpers::generated(array_merge($banner, ['# ' . $title])), ['']);
         $this->writeFile('home.md', implode("\n", $head) . implode("\n", $sections));
+    }
+
+    // The course's settings (course.md) and header image (headerimage/), exactly as written, for the home page's note
+    private function courseNote(Site $site): array
+    {
+        $note = ['course' => ['folder' => $site->courseFolder] + self::pageText($site->coursePage)];
+        if ($site->headerImage !== null) {
+            // each image's address in images/, where the way back finds it
+            $sources = [];
+            foreach ($site->headerImage->images as $image) {
+                $sources[$image] = $this->copyImage($site->headerImage, $image);
+            }
+            $note['headerimage'] = ['images' => $sources] + self::pageText($site->headerImage);
+        }
+        return $note;
+    }
+
+    // A page's front matter and text, with its spacing, as kept in a note
+    private static function pageText(Page $page): array
+    {
+        return array_merge(['yaml' => $page->yaml, 'body' => trim($page->body)], self::spacing($page));
+    }
+
+    // The header image as a banner at the top of the home page, as Open Course Space shows it ([] when there's none)
+    private function banner(?Page $headerImage): array
+    {
+        if ($headerImage === null || count($headerImage->images) === 0) {
+            return [];
+        }
+        $images = $headerImage->images;
+        sort($images);
+        $this->bannerImage = $this->copyImage($headerImage, $images[0]);
+        return ['![](' . $this->bannerImage . " ':class=banner-image')", ''];
     }
 
     // A stretch of the home page's own text (often just the blank lines between its parts), converted
     private function ownHomeText(array $lines): string
     {
-        return preg_replace("/\n{3,}/", "\n\n", $this->convert(implode("\n", $lines), '/home', 'home.md'));
+        return preg_replace("/\n{3,}/", "\n\n", $this->convert(implode("\n", $lines), $this->course . '/home', 'home.md'));
     }
 
     // One part of the home page, with its Grav settings and the page-inject line it came from in hidden notes, and a
     // note where it ends (text after it is the home page's own)
     private function homePart(Page $part, string $injectLine): array
     {
-        $body = trim($this->convert($this->withImagesFolder($part), '/home', 'home.md'));
+        $body = trim($this->convert($this->withImagesFolder($part), $this->course . '/home', 'home.md'));
         $lines = ['', $this->note($part), Embeds::hiddenLine($injectLine), ''];
         if ($part->file === 'alert.md') {
             // an alert box in Grav: the Starter Kits' announcement box (blank lines around the text, so Docsify
@@ -196,7 +250,7 @@ class CourseDocsifyWriter
     private function writeMenuPage(Page $page): void
     {
         $file = $page->slug() . '.md';
-        $body = trim($this->convert($this->withImagesFolder($page), '/' . $page->slug(), $file));
+        $body = trim($this->convert($this->withImagesFolder($page), $this->course . '/' . $page->slug(), $file));
         $lines = [$this->note($page), ''];
         if (!str_starts_with($body, '# ')) {
             $lines = array_merge($lines, Helpers::generated(['# ' . $page->title()]), ['']);
@@ -211,7 +265,7 @@ class CourseDocsifyWriter
     // Returns the sidebar groups.
     private function writeContact(Page $sidebarPage): array
     {
-        $text = trim($this->convert($this->withImagesFolder($sidebarPage), '/', 'contact.md'));
+        $text = trim($this->convert($this->withImagesFolder($sidebarPage), $this->course, 'contact.md'));
         $groups = [];
         $contact = [];
         foreach (preg_split('/^(?=#{1,6}\s)/m', $text) as $section) {
@@ -242,8 +296,9 @@ class CourseDocsifyWriter
                 $contact[] = self::groupNote($section, $heading, $links);
                 continue;
             }
+            // only blank lines are trimmed, so a line break at a line's end ("  ") stays
             if (trim($section) !== '') {
-                $contact[] = trim($section);
+                $contact[] = trim($section, "\n");
             }
         }
         $hasDetails = false;
@@ -336,7 +391,7 @@ class CourseDocsifyWriter
         return ['site' => $this->siteUrl];
     }
 
-    // The header image Open Matter shows for a page (header_image: true): header_image_file, or the page's first
+    // The header image Open Course Space shows for a module (header_image: true): header_image_file, or the page's first
     // image. Returns its address in images/, or '' when there isn't one.
     private function headerImage(Page $page): string
     {
@@ -387,12 +442,85 @@ class CourseDocsifyWriter
         return 'images/' . $name;
     }
 
+    // In a site of several courses, links to the course's pages start at the site's top: (module-01.md) →
+    // (cpt363-basic/module-01.md). Images stay as they are (Docsify reads them from the page's own folder).
+    private function withTop(string $text): string
+    {
+        $files = array_unique(array_merge(array_values($this->addresses), ['contact.md']));
+        return preg_replace_callback('/\]\(([A-Za-z0-9_-]+\.md)(?=[)?\s])/', function ($match) use ($files) {
+            if (!in_array($match[1], $files, true)) {
+                return $match[0];
+            }
+            return '](' . $this->top . $match[1];
+        }, $text);
+    }
+
+    // A site of several courses: the Courses page as the site's home page – its text, then a card for each course
+    // (its header image, name and description), as Open Course Space shows them. $courses: each course's Site, with
+    // its header image's address in its folder (CourseDocsifyWriter::$bannerImage) as $courseBanners[folder].
+    public static function writeCoursesPage(Page $page, array $courses, array $courseBanners, string $out, string $siteUrl = ''): void
+    {
+        $extra = [];
+        if ($siteUrl !== '') {
+            $extra['site'] = $siteUrl;
+        }
+        $title = $page->title();
+        $lines = [Helpers::gravNote($page, array_merge($extra, self::spacing($page))), ''];
+        $lines = array_merge($lines, Helpers::generated(['# ' . $title]), ['']);
+        $codeParts = [];
+        $text = Helpers::hideCode($page->body, $codeParts);
+        $text = Embeds::toDocsify($text);
+        $text = Callouts::toDocsify($text);
+        $text = Links::newTabToDocsify($text);
+        $lines[] = trim(Helpers::showCode($text, $codeParts));
+        $lines[] = '';
+        $cards = ['<div class="card-list card-list-guides">', ''];
+        foreach ($courses as $course) {
+            $cards = array_merge($cards, self::courseCard($course, $courseBanners[$course->courseFolder] ?? ''));
+        }
+        $cards[] = '</div>';
+        $lines = array_merge($lines, Helpers::generated($cards), ['']);
+        $lines = array_merge($lines, Helpers::generated(['<!-- Hides the sidebar on this page -->', DocsifyWriter::HIDE_SIDEBAR]));
+        file_put_contents($out . '/home.md', implode("\n", $lines) . "\n");
+        // a sidebar file with only a comment: Docsify looks for one beside the Courses page, and shows no sidebar
+        file_put_contents($out . '/_sidebar.md', "<!-- No sidebar on the Courses page: each course folder has its own _sidebar.md -->\n");
+        file_put_contents($out . '/_navbar.md', "<!-- No navbar on the Courses page: each course folder has its own _navbar.md -->\n");
+    }
+
+    // A course's card: its header image (already copied into the course's images/), name and description
+    private static function courseCard(Site $course, string $banner): array
+    {
+        $slug = Helpers::slugFromFolder($course->courseFolder);
+        $card = ['<div class="card">', ''];
+        if ($banner !== '') {
+            $card[] = '[![' . $course->coursePage->title() . '](' . $slug . '/' . $banner . ' ":no-zoom")](' . $slug . '/home.md)';
+            $card[] = '';
+        }
+        $card[] = '<h2><a href="#/' . $slug . '/home">' . $course->coursePage->title() . '</a></h2>';
+        $card[] = '';
+        $card[] = $course->coursePage->setting('description');
+        $card[] = '';
+        $card[] = '</div>';
+        $card[] = '';
+        return $card;
+    }
+
     // Grav Markdown → Docsify Markdown, as for guides: embeds, callouts, links between the course's pages, then links
     // that only work on the Grav site
     private function convert(string $markdown, string $gravPath, string $where): string
     {
         $codeParts = [];
         $markdown = Helpers::hideCode($markdown, $codeParts);
+        // a part of another page shown here ([plugin:page-inject](…)) only works in Grav: kept in a hidden note,
+        // set aside with the code so its link isn't converted
+        $markdown = preg_replace_callback('/^\[plugin:page-inject\]\([^)]*\)[ \t]*$/m', function ($match) use (&$codeParts) {
+            $codeParts[] = Embeds::hiddenLine($match[0]);
+            return Helpers::CODE_MARK . (count($codeParts) - 1) . Helpers::CODE_MARK;
+        }, $markdown);
+        // Open Course Space's badge → the Starter Kits' badge: [badge]Due Friday[/badge], or [badge label="Due Friday"][/badge]
+        // (marked, so it goes back the same way)
+        $markdown = preg_replace('/\[badge\](.*?)\[\/badge\]/', "<span class='badge'>$1</span>", $markdown);
+        $markdown = preg_replace('/\[badge label="([^"]*)"\]\[\/badge\]/', "<span class='badge' data-grav='label'>$1</span>", $markdown);
         $markdown = Embeds::toDocsify($markdown);
         $markdown = Callouts::toDocsify($markdown);
         $markdown = Links::newTabToDocsify($markdown);
@@ -406,6 +534,9 @@ class CourseDocsifyWriter
 
     private function writeFile(string $path, string $text): void
     {
+        if ($this->top !== '') {
+            $text = $this->withTop($text);
+        }
         $target = $this->out . '/' . $path;
         if (!is_dir(dirname($target))) {
             mkdir(dirname($target), 0700, true);

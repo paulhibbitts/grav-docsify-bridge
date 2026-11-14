@@ -6,10 +6,10 @@
 // The samples are small copies of public starter content (smaller images – the converter only copies them):
 //   grav-guides    – the Grav Open Publishing Space skeleton's two guides (also tested renamed to guide.md and guide-list.md)
 //   grav-extras    – a tiny guide with cases that once came back changed (Markdown-version links, banners, classes …)
-//   grav-course    – the Grav Open Course Hub skeleton's course
-//   grav-course-folder – a course in its own folder: the Grav Open Course Space skeleton's CPT363-1
+//   01.cpt363-basic – a course in its own folder: the Grav Open Course Space skeleton's CPT363-1
 //   docsify-guide  – the Docsify-This Guide Site template
 //   docsify-course – the Docsify Open Course Starter Kit (its docs folder, without assets)
+// (a whole Open Course Space site of two courses is put together from these in test 5)
 // To update a sample after a skeleton, template or kit changes on purpose, copy its new files over the old ones.
 
 if (PHP_SAPI !== 'cli') {
@@ -42,17 +42,14 @@ convert('grav2docsify', "$work/renamed", "$work/renamed-docsify");
 convert('docsify2grav', "$work/renamed-docsify", "$work/renamed-back");
 $failed += report('Grav guides with the newer page names come back identical', sameFiles("$work/renamed", "$work/renamed-back"));
 
-// 2. Grav course → Docsify → Grav: the same files as the original
-convert('course2docsify', "$samples/grav-course", "$work/course-docsify");
+// 2. An Open Course Space course → Docsify → Grav: the same course folder, file for file (its Read Me and LMS page
+//    are about the Grav site, so they aren't converted and don't come back)
+convert('course2docsify', "$samples/01.cpt363-basic", "$work/course-docsify");
 convert('course2grav', "$work/course-docsify", "$work/course-back");
-$failed += report('Grav course comes back identical', sameFiles("$samples/grav-course", "$work/course-back"));
-
-// 2b. A course in its own folder (Open Course Space) → Docsify → Grav: every page that comes back is the same as the
-//     original (its course.md, header image, LMS pages and Read Me aren't converted, so they don't come back)
-convert('course2docsify', "$samples/grav-course-folder", "$work/folder-docsify");
-convert('course2grav', "$work/folder-docsify", "$work/folder-back");
-$folderPages = ['01.home/01._reminders/alert.md', '02.modules/module.md', '03.schedule/course-page.md', '04.resources/course-page.md', '10.syllabus/course-page.md'];
-$failed += report('Course in its own folder comes back the same', sameReturnedFiles("$samples/grav-course-folder", "$work/folder-back", $folderPages));
+copyFolder("$samples/01.cpt363-basic", "$work/course-expected");
+removeFolder("$work/course-expected/20.readme");
+removeFolder("$work/course-expected/lms-home");
+$failed += report('Grav course comes back identical', sameFiles("$work/course-expected", "$work/course-back/01.cpt363-basic"));
 
 // 3. Docsify guide → Grav → Docsify: the same text for readers (the converter's hidden notes aside)
 convert('docsify2grav', "$samples/docsify-guide", "$work/guide-grav");
@@ -61,9 +58,19 @@ $failed += report('Docsify guide comes back with the same text', sameText("$samp
 
 // 4. Docsify course → Grav, then Grav → Docsify → Grav: the second Grav version is the same as the first
 convert('course2grav', "$samples/docsify-course", "$work/kit-grav");
-convert('course2docsify', "$work/kit-grav", "$work/kit-docsify");
+convert('course2docsify', "$work/kit-grav/01.my-course", "$work/kit-docsify");
 convert('course2grav', "$work/kit-docsify", "$work/kit-grav-again");
 $failed += report('Docsify course stays the same after another round trip', sameFiles("$work/kit-grav", "$work/kit-grav-again"));
+
+// 5. A whole Open Course Space site → Docsify → Grav: its Courses page and both courses, file for file (the course
+// from test 2, and the kit's course from test 4)
+mkdir("$work/site/00.courses", 0700, true);
+file_put_contents("$work/site/00.courses/course-list.md", "---\ntitle: Courses\nvisible: false\n---\n\nTwo **example** courses.\n");
+copyFolder("$work/course-expected", "$work/site/01.cpt363-basic");
+copyFolder("$work/kit-grav/01.my-course", "$work/site/02.my-course");
+convert('courses2docsify', "$work/site", "$work/site-docsify");
+convert('courses2grav', "$work/site-docsify", "$work/site-back");
+$failed += report('Open Course Space site comes back identical', sameFiles("$work/site", "$work/site-back"));
 
 removeFolder($work);
 if ($failed === 0) {

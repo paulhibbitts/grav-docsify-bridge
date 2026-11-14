@@ -85,7 +85,8 @@ class Helpers
         foreach ($extra as $name => $value) {
             $where[$name] = $value;
         }
-        $firstLine = json_encode($where, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        // (with any --> written as --\u003e, which JSON reads back the same, so it can't end the comment)
+        $firstLine = str_replace('-->', '--\\u003e', json_encode($where, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         // a comment ends at -->, so any --> in the front matter is written as --&gt;
         $yaml = rtrim(str_replace('-->', '--&gt;', $page->yaml));
         return '<!-- grav: ' . $firstLine . "\n" . $yaml . "\n-->";
@@ -246,5 +247,5 @@ class Helpers
     }
 
     // a character that never appears in written text (Unicode private use), to mark the placeholders
-    private const CODE_MARK = "\u{E000}";
+    public const CODE_MARK = "\u{E000}";
 }

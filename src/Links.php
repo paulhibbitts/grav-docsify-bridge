@@ -157,11 +157,11 @@ class Links
         }, $markdown);
     }
 
-    // ../readme from /open-education-essentials → /readme (as in a browser, the last part of the address is the page)
+    // As Grav reads a relative link, from the page itself: ../readme from /open-education-essentials → /readme, and
+    // ../../syllabus from /cpt363-basic/modules/welcome → /cpt363-basic/syllabus
     private static function resolve(string $pagePath, string $relative): string
     {
         $parts = self::pathParts($pagePath);
-        array_pop($parts);
         foreach (explode('/', $relative) as $piece) {
             if ($piece === '..') {
                 array_pop($parts);

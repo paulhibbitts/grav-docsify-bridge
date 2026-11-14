@@ -1,29 +1,20 @@
 <?php
 namespace OPG;
 
-// Reads the modules of an Open Course Hub course from its user/pages folder: the Modules page (module.md) with a page
-// per module (course-page.md), the home page and the parts it shows, the menu pages (Schedule, Topics, Resources …),
-// the course sidebar and the footer. Other pages – the blog and other page types – aren't part of the modules, so
-// they're listed in $notes.
+// Reads an Open Course Space course from its own folder: its settings (course.md), the Modules page (module.md) with
+// a page per module, the home page and the parts it shows, the menu pages (Schedule, Resources …), the header image,
+// the course sidebar and the footer. Other pages, such as a blog, aren't part of the modules, so they're listed in
+// $notes.
 class CourseGravReader extends GravReader
 {
     public array $notes = [];
-
-    // the page types (Grav file names) converted as menu pages (course-page.md in Open Course Space and Helios
-    // Course Hub courses)
-    private const MENU_PAGE_FILES = ['page.md', 'default.md', 'course-page.md'];
 
     public function read(string $pagesDir): Site
     {
         $site = new Site();
         $this->notes = [];
-        // a course in its own folder (Open Course Space or Open MultiCourse Hub): only its pages are converted
-        foreach (['course.md', 'subsite.md'] as $courseFile) {
-            if (is_file($pagesDir . '/' . $courseFile)) {
-                $this->notes[] = 'This course is in its own folder (' . basename($pagesDir) . '); converted back to Grav, its pages '
-                    . 'go back in that folder, beside its ' . $courseFile;
-            }
-        }
+        $site->courseFolder = basename($pagesDir);
+        $site->coursePage = $this->readPage($pagesDir, '', 'course.md', 'course');
         foreach ($this->subfolders($pagesDir) as $name) {
             $folder = $pagesDir . '/' . $name;
             $file = $this->markdownFile($folder);
@@ -40,6 +31,10 @@ class CourseGravReader extends GravReader
             }
             if ($name === 'footer') {
                 $site->courseFooter = $this->readPage($pagesDir, $name, $file, 'footer');
+                continue;
+            }
+            if ($name === 'headerimage') {
+                $site->headerImage = $this->readPage($pagesDir, $name, $file, 'headerimage');
                 continue;
             }
             // the skeleton's Read Me page is about setting up the Grav site (Git Sync, the Admin panel), not the course
@@ -76,7 +71,7 @@ class CourseGravReader extends GravReader
         return $modulesPage;
     }
 
-    // The home page and the parts it shows with [plugin:page-inject](/home/_part) – an announcement, this week's
+    // The home page and the parts it shows with [plugin:page-inject](../home/_part) – an announcement, this week's
     // reminders, next week's preparations – in the order it shows them
     private function readHome(string $pagesDir, string $homeFolder, string $file): Page
     {
@@ -90,10 +85,10 @@ class CourseGravReader extends GravReader
         return $home;
     }
 
-    // A numbered, visible page of a plain page type (not the modular home page, the blog or other page types)
+    // A numbered, visible course page (not the blog or other page types)
     private function isMenuPage(string $name, string $file, Page $page): bool
     {
         $isVisible = ($page->meta['visible'] ?? true) !== false && ($page->meta['routable'] ?? true) !== false;
-        return Helpers::isNumbered($name) && in_array($file, self::MENU_PAGE_FILES, true) && $isVisible;
+        return Helpers::isNumbered($name) && $file === 'course-page.md' && $isVisible;
     }
 }

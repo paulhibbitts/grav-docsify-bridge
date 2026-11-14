@@ -3,9 +3,9 @@ namespace OPG;
 
 use Symfony\Component\Yaml\Yaml;
 
-// Reads a Docsify course back into Open Course Hub pages. A course this converter made goes back unchanged, using its
-// hidden notes (with any edits made in Docsify); a course made in Docsify, laid out like the Docsify Open Course
-// Starter Kit, is turned into Open Course Hub pages.
+// Reads a Docsify course back into an Open Course Space course folder. A course this converter made goes back
+// unchanged, using its hidden notes (with any edits made in Docsify); a course made in Docsify, laid out like the
+// Docsify Open Course Starter Kit, is turned into a new course folder.
 class CourseDocsifyReader
 {
     // things worth checking, for conversion-notes.txt
@@ -17,17 +17,28 @@ class CourseDocsifyReader
     // the modules and link groups listed in _sidebar.md, and the pages in _navbar.md
     private array $sidebar = ['modules' => [], 'groups' => []];
     private array $navbar = [];
+    // the course's address on the Grav site, e.g. '/cpt363-basic' (its pages' addresses start with it)
+    private string $course = '';
+    // in a site of several courses, the course's folder, e.g. 'cpt363-basic/': its links start at the site's top
+    private string $top = '';
+    // the original Grav site's address, kept in the home page's note (links to it go back to Grav's own form)
+    private string $siteUrl = '';
 
-    public function read(string $dir): Site
+    // a course made in Docsify becomes this course folder, with this title (to rename in Grav)
+    private const NEW_COURSE_FOLDER = '01.my-course';
+    private const NEW_COURSE_TITLE = 'My Course';
+
+    public function read(string $dir, string $top = ''): Site
     {
         $this->dir = rtrim($dir, '/');
+        $this->top = $top;
         $this->notes = [];
         $this->sidebar = $this->parseSidebar($this->readFile('_sidebar.md'));
         $this->navbar = $this->parseNavbar($this->readFile('_navbar.md'));
 
         $notedPages = [];
         foreach (glob($this->dir . '/*.md') as $path) {
-            $note = Helpers::readGravNote((string)file_get_contents($path));
+            $note = Helpers::readGravNote($this->readFile(basename($path)));
             if ($note !== null) {
                 $notedPages[basename($path)] = $note;
             }
@@ -43,20 +54,24 @@ class CourseDocsifyReader
     private function fromNotes(array $notedPages): Site
     {
         $site = new Site();
+        // the course's folder, settings and header image, kept in the home page's note
+        $this->readCourseNote($site, $notedPages['home.md']['where'] ?? []);
+        $this->siteUrl = (string)($notedPages['home.md']['where']['site'] ?? '');
+        $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
         // every page's Grav address first, for the links between them
         foreach ($notedPages as $file => $note) {
             $gravFile = $note['where']['file'];
             $folder = dirname($gravFile);
-            if (basename($gravFile) === 'course-page.md') {
-                // a module: '03.modules/02.module-01/course-page.md' → '/modules/module-01'
+            if ($file === 'home.md') {
+                $this->addresses[$file] = $this->course . '/home';
+            } elseif (self::isModuleFile($gravFile)) {
+                // a module: '02.modules/02.module-01/course-page.md' → '/cpt363-basic/modules/module-01'
                 $moduleSlug = Helpers::slugFromFolder(basename($folder));
                 $modulesSlug = Helpers::slugFromFolder(basename(dirname($folder)));
-                $this->addresses[$file] = '/' . $modulesSlug . '/' . $moduleSlug;
-            } elseif ($file === 'home.md') {
-                $this->addresses[$file] = '/';
+                $this->addresses[$file] = $this->course . '/' . $modulesSlug . '/' . $moduleSlug;
             } elseif (!str_contains($folder, '/') && Helpers::isNumbered($folder)) {
-                // a menu page, in a numbered folder at the top: '05.schedule/page.md' → '/schedule'
-                $this->addresses[$file] = '/' . Helpers::slugFromFolder($folder);
+                // a menu page, in a numbered folder in the course: '03.schedule/course-page.md' → '/cpt363-basic/schedule'
+                $this->addresses[$file] = $this->course . '/' . Helpers::slugFromFolder($folder);
             }
         }
 
@@ -70,10 +85,10 @@ class CourseDocsifyReader
                 continue;
             }
             if ($file === 'home.md') {
-                $site->courseHome = $this->readNotedHome($note);
+                $site->courseHome = $this->readNotedHome($note, $site);
                 continue;
             }
-            if (basename($gravFile) === 'course-page.md') {
+            if (self::isModuleFile($gravFile)) {
                 $modules[$gravFile] = $this->readNotedModule($file, $note);
                 continue;
             }
@@ -103,7 +118,7 @@ class CourseDocsifyReader
             $site->courseSidebar = $this->sidebarPage($this->groupsText(), 'sidebar');
         }
         if ($site->modulesPage === null) {
-            $site->modulesPage = $this->newPage('modules', '03.modules', 'module.md', ['title' => 'Modules']);
+            $site->modulesPage = $this->newPage('modules', '02.modules', 'module.md', ['title' => 'Modules']);
         }
         ksort($modules, SORT_NATURAL);
         $site->modulesPage->children = array_values($modules);
@@ -113,6 +128,68 @@ class CourseDocsifyReader
         });
         $this->noteOtherPages(array_keys($notedPages));
         return $site;
+    }
+
+    // A module's page is in a folder inside the Modules page's folder: '02.modules/02.module-01/course-page.md'
+    private static function isModuleFile(string $gravFile): bool
+    {
+        return basename($gravFile) === 'course-page.md' && substr_count($gravFile, '/') === 2;
+    }
+
+    // The course's folder, settings (course.md) and header image, from the home page's note. Without them (a course
+    // converted before they were kept), a new course folder.
+    private function readCourseNote(Site $site, array $where): void
+    {
+        $course = $where['course'] ?? [];
+        $folder = (string)($course['folder'] ?? '');
+        // the folder is written on the server, so only a plain folder name: letters, numbers, . _ and -
+        if (preg_match('/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/', $folder) !== 1 || str_contains($folder, '..')) {
+            $this->newCourse($site);
+            return;
+        }
+        $site->courseFolder = $folder;
+        $site->coursePage = $this->pageFromNote('course', '', 'course.md', $course);
+        $header = $where['headerimage'] ?? null;
+        if (!is_array($header)) {
+            return;
+        }
+        $site->headerImage = $this->pageFromNote('headerimage', 'headerimage', 'default.md', $header);
+        foreach ((array)($header['images'] ?? []) as $name => $source) {
+            $name = basename((string)$name);
+            $path = Helpers::imageInside($this->dir, $this->dir . '/' . ltrim((string)$source, './'));
+            if ($path !== '') {
+                $site->headerImage->images[] = $name;
+                $site->headerImage->imageSources[$name] = $path;
+            }
+        }
+    }
+
+    // A page kept in a note as its front matter and text (the course's settings, its header image)
+    private function pageFromNote(string $kind, string $folder, string $file, array $kept): Page
+    {
+        $page = new Page($kind, $folder, $file);
+        $page->yaml = (string)($kept['yaml'] ?? '');
+        $settings = Yaml::parse($page->yaml);
+        if (is_array($settings)) {
+            $page->meta = $settings;
+        }
+        $page->body = (string)($kept['body'] ?? '');
+        foreach (['before' => 'textBefore', 'after' => 'textAfter'] as $name => $property) {
+            if (isset($kept[$name]) && trim((string)$kept[$name]) === '') {
+                $page->$property = (string)$kept[$name];
+            }
+        }
+        return $page;
+    }
+
+    // A new course folder and its settings, for a course made in Docsify
+    private function newCourse(Site $site): void
+    {
+        $site->courseFolder = self::NEW_COURSE_FOLDER;
+        $site->coursePage = $this->newPage('course', '', 'course.md', [
+            'title' => self::NEW_COURSE_TITLE, 'published' => true, 'hide_from_menu' => true, 'course_home' => 'home',
+            'page-inject' => ['processed_content' => true],
+        ]);
     }
 
     // A module: its settings, with the title from the sidebar and the description from the page's heading (both may
@@ -166,7 +243,7 @@ class CourseDocsifyReader
     // The home page and its parts: each part starts with its own note and the page-inject line that shows it, and
     // ends with <!-- grav:/part --> (or, in courses converted before that note was added, at the next part or the
     // end); the home page's own text is everything else
-    private function readNotedHome(array $note): Page
+    private function readNotedHome(array $note, Site $site): Page
     {
         $home = $this->notedPage('home', $note, '');
         $parts = [];
@@ -185,7 +262,11 @@ class CourseDocsifyReader
         }, $note['rest']);
         // the parts' blank lines are left behind where they were taken out
         $home->body = $this->authorText(preg_replace("/\n{3,}/", "\n\n", $ownText), $note);
-        $this->updateTitle($home, $note['rest'], '');
+        // the heading shows the course's name (after its header image): a new heading renames the course
+        $heading = '/<!-- grav:gen -->\n(?:!\[[^\n]*\n\n)?# (.+?)\n<!-- \/grav:gen -->/';
+        if ($site->coursePage !== null && preg_match($heading, $note['rest'], $found) === 1 && trim($found[1]) !== $site->coursePage->title()) {
+            $this->changeSettings($site->coursePage, ['title' => trim($found[1])]);
+        }
         $home->children = $parts;
         return $home;
     }
@@ -219,8 +300,11 @@ class CourseDocsifyReader
         $text = Helpers::hideCode($text, $codeParts);
         $text = Callouts::toGrav($text);
         $text = Embeds::toGrav($text);
+        // the Starter Kits' badge, written from Open Course Space's [badge]label[/badge]
+        $text = preg_replace("/<span class='badge'>(.*?)<\/span>/", '[badge]$1[/badge]', $text);
+        $text = preg_replace("/<span class='badge' data-grav='label'>(.*?)<\/span>/", '[badge label="$1"][/badge]', $text);
         $text = Links::mapToGrav($text, $this->addresses, $note['where']['links'] ?? []);
-        $site = $note['where']['site'] ?? '';
+        $site = $note['where']['site'] ?? $this->siteUrl;
         if ($site !== '') {
             $text = str_replace('](' . rtrim($site, '/') . '/', '](/', $text);
         }
@@ -296,7 +380,7 @@ class CourseDocsifyReader
         return $rest;
     }
 
-    // A link group as Open Course Hub writes it: a heading, then a link on each line
+    // A link group as Open Course Space writes it: a heading, then a link on each line
     private function groupText(array $group): string
     {
         $lines = ['## ' . $group['heading']];
@@ -368,23 +452,25 @@ class CourseDocsifyReader
             }
         }
 
+        $this->newCourse($site);
+        $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
         // every page's Grav address first, for the links between them
-        $this->addresses = ['home.md' => '/'];
+        $this->addresses = ['home.md' => $this->course . '/home'];
         foreach ($moduleFiles as $file) {
-            $this->addresses[$file] = '/modules/' . basename($file, '.md');
+            $this->addresses[$file] = $this->course . '/modules/' . basename($file, '.md');
         }
         foreach ($menuFiles as $file) {
-            $this->addresses[$file] = '/' . basename($file, '.md');
+            $this->addresses[$file] = $this->course . '/' . basename($file, '.md');
         }
 
-        $site->courseHome = $this->homeFromDocsify();
-        $site->modulesPage = $this->newPage('modules', '03.modules', 'module.md', ['title' => 'Modules', 'published' => true]);
+        $site->courseHome = $this->homeFromDocsify($site);
+        $site->modulesPage = $this->newPage('modules', '02.modules', 'module.md', ['title' => 'Modules', 'published' => true]);
         foreach ($moduleFiles as $index => $file) {
             $isListed = isset($this->sidebar['modules'][$file]);
             $site->modulesPage->children[] = $this->moduleFromDocsify($file, sprintf('%02d', $index + 1), $isListed);
         }
         foreach ($menuFiles as $index => $file) {
-            $site->coursePages[] = $this->menuPageFromDocsify($file, sprintf('%02d', $index + 5));
+            $site->coursePages[] = $this->menuPageFromDocsify($file, sprintf('%02d', $index + 3));
         }
 
         // the course sidebar: the Contact page's details, then the sidebar's link groups (such as the LMS links)
@@ -406,11 +492,21 @@ class CourseDocsifyReader
     }
 
     // The course home: its text, with each announcement box (<blockquote class="announcement">) as a part of the home
-    // page shown in an alert box, as Open Course Hub's reminders are
-    private function homeFromDocsify(): Page
+    // page shown in an alert box, as Open Course Space's reminders are. A banner at the top becomes the course's
+    // header image.
+    private function homeFromDocsify(Site $site): Page
     {
-        $home = $this->newPage('home', '01.home', 'page.md', ['title' => 'Home', 'published' => true, 'visible' => false, 'hide_page_title' => true]);
+        $home = $this->newPage('home', '01.home', 'course-page.md', ['title' => 'Home', 'published' => true, 'visible' => false, 'hide_page_title' => true]);
         $text = $this->readFile('home.md');
+        // a banner at the top: ![Alt text](images/photo.jpg ':class=banner-image')
+        if (preg_match('/^\s*!\[[^\]]*\]\(([^)\s]+)\s+[\'"][^\'"]*:class=banner-image[^\'"]*[\'"]\)\s*\n/', $text, $found) === 1) {
+            $site->headerImage = $this->newPage('headerimage', 'headerimage', 'default.md', ['title' => 'Header Image', 'visible' => false, 'routable' => false]);
+            if ($this->addImage($site->headerImage, $found[1], 'home.md')) {
+                $text = substr($text, strlen($found[0]));
+            } else {
+                $site->headerImage = null;
+            }
+        }
         $number = 0;
         $text = preg_replace_callback('/<blockquote class="announcement">\s*\n(.*?)\n\s*<\/blockquote>/s', function ($match) use ($home, &$number) {
             $slug = '_announcement' . ($number === 0 ? '' : '-' . ($number + 1));
@@ -420,7 +516,7 @@ class CourseDocsifyReader
             $part->body = $this->toGravText(trim($match[1]), $part, 'home.md');
             $home->children[] = $part;
             $number++;
-            return '[plugin:page-inject](/home/' . $slug . ')';
+            return '[plugin:page-inject](../home/' . $slug . ')';
         }, $text);
         $home->body = $this->toGravText(trim($text), $home, 'home.md');
         return $home;
@@ -473,10 +569,10 @@ class CourseDocsifyReader
         if (!$isListed) {
             $settings['visible'] = false;
         }
-        $page = $this->newPage('module', '03.modules/' . $number . '.' . $slug, 'course-page.md', $settings);
+        $page = $this->newPage('module', '02.modules/' . $number . '.' . $slug, 'course-page.md', $settings);
         $body = trim(implode("\n", array_slice($lines, $i)));
         if ($headerImage !== null) {
-            // the header image goes beside the page like its other images; Open Matter shows it at the top
+            // the header image goes beside the page like its other images; Open Course Space shows it at the top
             $this->addImage($page, $headerImage[2], $file);
             $page->meta = array_merge($page->meta, ['header_image' => true, 'header_image_file' => basename($headerImage[2])]);
             if ($headerImage[1] !== '') {
@@ -484,8 +580,7 @@ class CourseDocsifyReader
             }
         }
         $page->body = $this->toGravText($body, $page, $file);
-        // Open Matter shows the description only on the Modules page, so the page starts with it, as Open Course
-        // Hub's own modules do
+        // the page starts with its description, as Open Course Space's own modules do
         if (isset($settings['description'])) {
             $page->body = '## **' . $settings['description'] . "**\n\n" . $page->body;
         }
@@ -506,7 +601,7 @@ class CourseDocsifyReader
             }
             $text = trim(substr($text, strlen($found[0])));
         }
-        $page = $this->newPage('menu', $number . '.' . basename($file, '.md'), 'page.md', $settings);
+        $page = $this->newPage('menu', $number . '.' . basename($file, '.md'), 'course-page.md', $settings);
         $page->body = $this->toGravText($text, $page, $file);
         return $page;
     }
@@ -618,6 +713,10 @@ class CourseDocsifyReader
         $navbar = [];
         preg_match_all('/^\s*[-*] \[([^\]]+)\]\(([^)\s]+)\)/m', $text, $found, PREG_SET_ORDER);
         foreach ($found as $match) {
+            // in a site of several courses, the way back to the Courses page
+            if ($this->top !== '' && $match[2] === '#/') {
+                continue;
+            }
             $file = $this->siteFile($match[2]);
             if ($file !== '') {
                 $navbar[$file] = $match[1];
@@ -672,7 +771,7 @@ class CourseDocsifyReader
         }
     }
 
-    // A Docsify link button becomes Open Course Hub's [button] shortcode, which the theme shows as a button.
+    // A Docsify link button becomes Open Course Space's [button] shortcode, which the theme shows as a button.
     // Example: [Quiz due Jun 4th](https://example.org/quiz ':class=button') → [button label="Quiz due Jun 4th" url="https://example.org/quiz" /]
     private function buttonsToGrav(string $markdown): string
     {
@@ -684,11 +783,11 @@ class CourseDocsifyReader
         }, $markdown);
     }
 
-    // A Docsify badge (a date shown as a small dark pill) gets Bootstrap's badge-secondary, the pill Open Matter shows.
-    // Example: <span class='badge'>Tue Jun 12th</span> → <span class="badge badge-secondary">Tue Jun 12th</span>
+    // A Docsify badge (a small label, such as a due date) becomes Open Course Space's [badge] shortcode.
+    // Example: <span class='badge'> Tue Jun 12th</span> → [badge]Tue Jun 12th[/badge]
     private function badgesToGrav(string $markdown): string
     {
-        return preg_replace('/<span class=([\'"])badge\1>/', '<span class="badge badge-secondary">', $markdown);
+        return preg_replace('/<span class=([\'"])badge\1>\s*(.*?)\s*<\/span>/', '[badge]$2[/badge]', $markdown);
     }
 
     private function addNote(string $note): void
@@ -698,13 +797,49 @@ class CourseDocsifyReader
         }
     }
 
+    // A page of the course; in a site of several courses, with its links from the site's top read as links in the
+    // course's folder: (cpt363-basic/module-01.md) → (module-01.md)
     private function readFile(string $file): string
     {
         $path = $this->dir . '/' . $file;
         if (!is_file($path)) {
             return '';
         }
-        return (string)file_get_contents($path);
+        $text = (string)file_get_contents($path);
+        if ($this->top !== '') {
+            $text = str_replace('](' . $this->top, '](', $text);
+        }
+        return $text;
+    }
+
+    // A site of several courses: the Courses page, from the site's home.md (null when it isn't one this converter
+    // made). Its text goes back with any edits made in Docsify.
+    public static function readCoursesPage(string $dir): ?Page
+    {
+        $note = Helpers::readGravNote((string)@file_get_contents(rtrim($dir, '/') . '/home.md'));
+        if ($note === null || basename($note['where']['file']) !== 'course-list.md') {
+            return null;
+        }
+        $gravFile = $note['where']['file'];
+        $page = new Page('courses', dirname($gravFile), basename($gravFile));
+        $page->yaml = $note['yaml'];
+        $settings = Yaml::parse($note['yaml']);
+        if (is_array($settings)) {
+            $page->meta = $settings;
+        }
+        $text = trim(preg_replace('/<!-- grav:gen -->\n.*?\n<!-- \/grav:gen -->/s', '', $note['rest']));
+        $codeParts = [];
+        $text = Helpers::hideCode($text, $codeParts);
+        $text = Callouts::toGrav($text);
+        $text = Embeds::toGrav($text);
+        $text = Links::newTabToGrav($text);
+        $page->body = Helpers::showCode($text, $codeParts);
+        foreach (['before' => 'textBefore', 'after' => 'textAfter'] as $name => $property) {
+            if (isset($note['where'][$name])) {
+                $page->$property = (string)$note['where'][$name];
+            }
+        }
+        return $page;
     }
 
     private function skipBlankLines(array $lines, int $i): int

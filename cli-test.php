@@ -2,7 +2,10 @@
 // Runs the converter from the command line, for testing on your own sites:
 //   php cli-test.php grav2docsify <pages folder> <output folder> [single] [site=https://original-site]
 //   php cli-test.php docsify2grav <Docsify site folder> <output pages folder>
-//   php cli-test.php course2docsify <Open Course Hub pages folder> <output folder> [site=https://original-site]
+//   php cli-test.php course2docsify <Open Course Space course folder> <output folder> [site=https://original-site]
+//   php cli-test.php course2grav <Docsify course folder> <output pages folder (the course folder goes inside)>
+//   php cli-test.php courses2docsify <Open Course Space pages folder> <output folder> [site=https://original-site]
+//   php cli-test.php courses2grav <Docsify site of several courses> <output pages folder>
 // The Docsify output works at the top of a repo shown by Docsify-This, or in a Starter Kit's docs/ folder.
 // only from the command line: on the web server it does nothing
 if (PHP_SAPI !== 'cli') {
@@ -16,7 +19,7 @@ use OPG\DocsifyWriter;
 use OPG\GravReader;
 use OPG\GravWriter;
 
-$usage = "Usage: php cli-test.php grav2docsify|docsify2grav|course2docsify|course2grav <source folder> <output folder> [single] [site=https://original-site]\n";
+$usage = "Usage: php cli-test.php grav2docsify|docsify2grav|course2docsify|course2grav|courses2docsify|courses2grav <source folder> <output folder> [single] [site=https://original-site]\n";
 if (count($argv) < 4) {
     fwrite(STDERR, $usage);
     exit(1);
@@ -24,7 +27,7 @@ if (count($argv) < 4) {
 $direction = $argv[1];
 $source = rtrim($argv[2], '/');
 $out = rtrim($argv[3], '/');
-if (!in_array($direction, ['grav2docsify', 'docsify2grav', 'course2docsify', 'course2grav'], true)) {
+if (!in_array($direction, ['grav2docsify', 'docsify2grav', 'course2docsify', 'course2grav', 'courses2docsify', 'courses2grav'], true)) {
     fwrite(STDERR, $usage);
     exit(1);
 }
@@ -44,6 +47,20 @@ for ($i = 4; $i < count($argv); $i++) {
     }
 }
 
+if ($direction === 'courses2docsify' || $direction === 'courses2grav') {
+    $courseSite = new OPG\CourseSite();
+    if ($direction === 'courses2docsify') {
+        $courseSite->toDocsify($source, $out, $siteUrl);
+    } else {
+        $courseSite->toGrav($source, $out);
+    }
+    foreach ($courseSite->notes as $note) {
+        echo 'Note – ' . $note . "\n";
+    }
+    echo 'Converted ' . count($courseSite->courses) . " course(s) to $out\n";
+    exit;
+}
+
 if ($direction === 'course2grav') {
     $reader = new OPG\CourseDocsifyReader();
     $site = $reader->read($source);
@@ -56,6 +73,10 @@ if ($direction === 'course2grav') {
 }
 
 if ($direction === 'course2docsify') {
+    if (!is_file($source . '/course.md')) {
+        fwrite(STDERR, "No course (a folder with its course.md) was found in $source\n");
+        exit(1);
+    }
     $reader = new OPG\CourseGravReader();
     $site = $reader->read($source);
     if ($site->modulesPage === null) {

@@ -19,10 +19,13 @@ class Preview
         $this->out = rtrim($out, '/');
     }
 
-    // $direction: 'grav' or 'docsify' (what the files were converted to); $isCourse: a course rather than guides
-    public function samplePages(string $direction, bool $isCourse = false): array
+    // $direction: 'grav' or 'docsify' (what the files were converted to); $isCourse: a course rather than guides;
+    // $isCourseSite: several courses, with a Courses page
+    public function samplePages(string $direction, bool $isCourse = false, bool $isCourseSite = false): array
     {
-        if ($isCourse) {
+        if ($isCourseSite) {
+            $paths = $this->courseSiteSamples($direction);
+        } elseif ($isCourse) {
             $paths = $this->courseSamples($direction);
         } elseif ($direction === 'grav') {
             $paths = $this->gravSamples();
@@ -39,35 +42,52 @@ class Preview
         return $pages;
     }
 
+    // Several courses: the Courses page, then the first course's pages (one module, so its sidebar still fits)
+    private function courseSiteSamples(string $direction): array
+    {
+        $coursesPage = 'home.md';
+        if ($direction === 'grav') {
+            $coursesPage = $this->firstMatch('pages/*/course-list.md');
+        }
+        // (in Docsify, each course is in a folder of its own: cpt363-basic/…)
+        $samples = ['Courses page' => $coursesPage] + $this->courseSamples($direction, dirname($this->firstMatch('*/_sidebar.md')) . '/');
+        unset($samples['Module 2']);
+        return $samples;
+    }
+
     // A course: its home page, its first two modules, its first menu page and its sidebar
-    private function courseSamples(string $direction): array
+    // $folder: in Docsify, the course's folder when it isn't at the top (its sidebar and navbar links start from the top)
+    private function courseSamples(string $direction, string $folder = ''): array
     {
         if ($direction === 'grav') {
-            $samples = ['Home page' => $this->firstMatch('pages/*/page.md')];
-            $modules = glob($this->out . '/pages/*/*/course-page.md');
+            // the course's own folder: pages/01.my-course/…
+            $course = dirname($this->firstMatch('pages/*/course.md'));
+            $samples = ['Home page' => $course . '/01.home/course-page.md'];
+            $modules = glob($this->out . '/' . $course . '/*/*/course-page.md');
             sort($modules, SORT_NATURAL);
             foreach (array_slice($modules, 0, 2) as $index => $module) {
                 $samples['Module ' . ($index + 1)] = substr($module, strlen($this->out) + 1);
             }
-            $menuPages = glob($this->out . '/pages/*/page.md');
+            $menuPages = glob($this->out . '/' . $course . '/*/course-page.md');
             sort($menuPages, SORT_NATURAL);
+            // (the first is the home page)
             if (isset($menuPages[1])) {
                 $samples['Menu page'] = substr($menuPages[1], strlen($this->out) + 1);
             }
-            $samples['Sidebar'] = 'pages/sidebar/default.md';
+            $samples['Sidebar'] = $course . '/sidebar/default.md';
         } else {
-            $samples = ['Home page' => 'home.md'];
+            $samples = ['Home page' => $folder . 'home.md'];
             // the sidebar's first two modules and the navbar's first page
-            $sidebar = $this->fileText('_sidebar.md');
+            $sidebar = $this->fileText($folder . '_sidebar.md');
             preg_match_all('/^- \[[^\]]+\]\(([^)\s]+\.md)\)/m', $sidebar, $links);
             foreach (array_slice($links[1], 0, 2) as $index => $module) {
                 $samples['Module ' . ($index + 1)] = $module;
             }
-            $navbar = $this->fileText('_navbar.md');
+            $navbar = $this->fileText($folder . '_navbar.md');
             if (preg_match('/\]\(([^)\s]+\.md)\)/', $navbar, $found) === 1) {
                 $samples['Menu page'] = $found[1];
             }
-            $samples['Sidebar'] = '_sidebar.md';
+            $samples['Sidebar'] = $folder . '_sidebar.md';
         }
         // only pages that are there
         $found = [];
