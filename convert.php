@@ -492,6 +492,9 @@ if ($repo !== null) {
         $courses = $courseSite->courses;
         $course = $courses[0];
         $warnings = array_values(array_unique($courseSite->notes));
+        // the converter doesn't know the site's name (Grav keeps it outside the pages folder), so the Courses page's navbar is empty
+        $tips = ['to show your site\'s name at the top of the Courses page (and on phones), add this to the top _navbar.md: '
+            . '- [Your Site Name](home.md ":class=site-title")'];
     } else {
         $pagesFolder = findCourseFolder($searchFolder);
         $reader = new CourseGravReader();
@@ -500,8 +503,9 @@ if ($repo !== null) {
         $writer->write($course, $pagesFolder, $work . '/out', $siteUrl);
         $warnings = array_values(array_unique(array_merge($reader->notes, $writer->warnings)));
     }
-    $tips = ['to use your Grav site\'s favicon, copy it from user/themes/mytheme/images/favicon/ into the Docsify site and add '
-        . '&loadFavicon= with its file name (such as favicon.png) to the Docsify-This link'];
+    $tips = $tips ?? [];
+    $tips[] = 'to use your Grav site\'s favicon, copy it from user/themes/mytheme/images/favicon/ into the Docsify site and add '
+        . '&loadFavicon= with its file name (such as favicon.png) to the Docsify-This link';
 }
 
 if ($repo !== null && $course === null) {

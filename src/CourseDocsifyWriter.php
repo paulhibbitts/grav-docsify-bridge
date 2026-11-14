@@ -513,7 +513,9 @@ class CourseDocsifyWriter
         file_put_contents($out . '/home.md', implode("\n", $lines) . "\n");
         // a sidebar file with only a comment: Docsify looks for one beside the Courses page, and shows no sidebar
         file_put_contents($out . '/_sidebar.md', "<!-- No sidebar on the Courses page: each course folder has its own _sidebar.md -->\n");
-        file_put_contents($out . '/_navbar.md', "<!-- No navbar on the Courses page: each course folder has its own _navbar.md -->\n");
+        // an empty navbar (each course folder has its own _navbar.md): Docsify-This then leaves no room for one, as on
+        // the Guides page (a comment here would count as content, and leave a gap above the page on phones)
+        file_put_contents($out . '/_navbar.md', "\n");
     }
 
     // A course's card: its header image (already copied into the course's images/), name and description
