@@ -108,12 +108,12 @@ class CourseDocsifyWriter
                 $head[] = '<small>Photo: ' . $credit . '</small>';
             }
         }
-        // the description as a ## heading, left out of the sidebar's list of the page's sections
-        // ({docsify-ignore}); the text's own copy of it is hidden below (see withoutRepeatedHeading())
+        // the description as a ## heading (listed first in the sidebar under the page, as a week's question is); the
+        // text's own copy of it is hidden below (see withoutRepeatedHeading())
         $description = $module->setting('description');
         if ($description !== '') {
             $head[] = '';
-            $head[] = '## ' . $description . ' <!-- {docsify-ignore} -->';
+            $head[] = '## ' . $description;
         }
         if ($module->setting('learning_objectives') !== '') {
             $head[] = '';
