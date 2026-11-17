@@ -87,10 +87,10 @@ class Preview
             foreach (array_slice($links[1], 0, 2) as $index => $module) {
                 $samples['Module ' . ($index + 1)] = $module;
             }
-            // (not All Courses, the link back to the Courses page: home.md)
+            // (not Home, the link to the course's home page, or a link back to the Courses page)
             $navbar = $this->fileText($folder . '_navbar.md');
-            if (preg_match('/\]\((?!home\.md\))([^)\s]+\.md)\)/', $navbar, $found) === 1) {
-                $samples['Menu page'] = $found[1];
+            if (preg_match('/\]\((?!([^)\s]*\/)?home\.md\))([^)\s]+\.md)\)/', $navbar, $found) === 1) {
+                $samples['Menu page'] = $found[2];
             }
             $samples['Sidebar'] = $folder . '_sidebar.md';
         }

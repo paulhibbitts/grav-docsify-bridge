@@ -1,5 +1,5 @@
 - [CPT363-3](cpt363-advanced/home.md ":class=site-title")
-- [All Courses](home.md)
+- [Home](cpt363-advanced/home.md)
 - [Schedule](cpt363-advanced/schedule.md)
 - [Topics](cpt363-advanced/topics.md)
 - [Resources](cpt363-advanced/resources.md)

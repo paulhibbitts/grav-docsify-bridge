@@ -57,6 +57,10 @@ class CourseDocsifyWriter
 
         // the course's name first, as the site's title (Docsify-This shows it on phones, where the sidebar starts closed)
         $navbar = ['- [' . $site->coursePage->title() . '](home.md ":class=site-title")'];
+        if ($this->top !== '') {
+            // in a site of several courses, a Home link to the course's home page (the site title shows only on phones)
+            $navbar[] = '- [Home](home.md)';
+        }
         foreach ($site->coursePages as $page) {
             $this->writeMenuPage($page);
             $navbar[] = '- [' . $page->title() . '](' . $page->slug() . '.md)';
@@ -69,13 +73,6 @@ class CourseDocsifyWriter
             }
         }
         $this->writeFile('_navbar.md', implode("\n", $navbar));
-        if ($this->top !== '') {
-            // in a site of several courses, a way back to the Courses page (the site's home page: links start at the
-            // top, so it's added after the course's own links get its folder), after the course's name
-            $lines = explode("\n", (string)file_get_contents($this->out . '/_navbar.md'));
-            $lines = array_merge([$lines[0], '- [All Courses](home.md)'], array_slice($lines, 1));
-            file_put_contents($this->out . '/_navbar.md', implode("\n", $lines));
-        }
         $this->writeSidebar($site, $sidebarGroups);
         // the course's footer, unless it only credits Grav (then it's kept in the home page's note, see courseNote())
         if ($site->courseFooter !== null && !self::isGravCredit($site->courseFooter)) {
