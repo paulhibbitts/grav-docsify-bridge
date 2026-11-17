@@ -379,9 +379,10 @@ class CourseDocsifyWriter
             $lines = [Helpers::gravNote($modulesPage, array_merge($extra, self::spacing($modulesPage))), ''];
         }
         if ($this->top !== '') {
-            // in a site of several courses, the course's name first, in bold, as for guides – a link to the course's
-            // home page, the way back from its pages
-            $lines = array_merge($lines, Helpers::generated(['**[' . $site->coursePage->title() . '](home.md)**']), ['']);
+            // in a site of several courses, the course's name first, in bold, as for guides, then a Home item for the
+            // course's home page. Docsify attaches a page's headings to its own sidebar item and then forgets them; a
+            // home page without an item kept its headings, which then showed under the next page opened
+            $lines = array_merge($lines, Helpers::generated(['**' . $site->coursePage->title() . '**', '', '- [Home](home.md)']), ['']);
         }
         foreach ($modulesPage->children as $module) {
             // hidden or unpublished modules aren't listed
