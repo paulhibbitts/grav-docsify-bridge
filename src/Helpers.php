@@ -135,14 +135,20 @@ class Helpers
     // A card on the Guides or Courses page, as Quark 2 Open Publishing shows them: an image linking to the page (or ''),
     // the title as a link (an <h2>, so cards line up), then lines of text.
     // $page: the Docsify page, e.g. 'cpt363-basic/home'; $image: its address from the site's top
-    public static function card(string $page, string $title, string $image, string $alt, array $text, string $badge = ''): array
+    // $markdownTitle: the title as a Markdown heading link to the page's file, which also works when browsing the files
+    // on GitHub (course cards; guide cards keep the HTML link, so their titles stay out of the sidebar and search)
+    public static function card(string $page, string $title, string $image, string $alt, array $text, string $badge = '', bool $markdownTitle = false): array
     {
         $card = ['<div class="card">', ''];
         if ($image !== '') {
             $card[] = '[![' . $alt . '](' . $image . ' ":no-zoom")](' . $page . '.md)';
             $card[] = '';
         }
-        $card[] = '<h2><a href="#/' . $page . '">' . $title . '</a>' . $badge . '</h2>';
+        if ($markdownTitle) {
+            $card[] = '## [' . $title . '](' . $page . '.md)' . $badge;
+        } else {
+            $card[] = '<h2><a href="#/' . $page . '">' . $title . '</a>' . $badge . '</h2>';
+        }
         $card[] = '';
         foreach ($text as $line) {
             $card[] = $line;

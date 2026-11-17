@@ -550,7 +550,7 @@ class CourseDocsifyWriter
         if ($banner !== '') {
             $image = $slug . '/' . $banner;
         }
-        return Helpers::card($slug . '/home', $title, $image, $title, [$course->coursePage->setting('description')]);
+        return Helpers::card($slug . '/home', $title, $image, $title, [$course->coursePage->setting('description')], '', true);
     }
 
     // Grav Markdown → Docsify Markdown, as for guides: embeds, callouts, links between the course's pages, then links

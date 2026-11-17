@@ -140,7 +140,7 @@ class CourseSite
                 continue;
             }
             $title = $folder;
-            if (preg_match('/<h[2-4][^>]*>(.*?)<\/h[2-4]>|^#{2,4} (.+)$/ms', $block, $heading) === 1) {
+            if (preg_match('/<h[2-4][^>]*>(.*?)<\/h[2-4]>|^#{2,4} ([^\n]+)$/ms', $block, $heading) === 1) {
                 $title = trim(html_entity_decode(strip_tags(preg_replace('/<span class="badge">.*?<\/span>/', '', $heading[1] !== '' ? $heading[1] : $heading[2]))));
                 $title = trim(preg_replace('/^\[(.*)\]\([^)]*\)$/', '$1', $title));
             }
