@@ -524,7 +524,7 @@ class CourseDocsifyWriter
         $text = Links::newTabToDocsify($text);
         $lines[] = trim(Helpers::showCode($text, $codeParts));
         $lines[] = '';
-        $cards = ['<div class="card-list card-list-guides">', ''];
+        $cards = ['<div class="card-list-courses">', ''];
         foreach ($courses as $course) {
             $banner = '';
             if (isset($courseBanners[$course->courseFolder])) {
