@@ -94,7 +94,7 @@ $failed += report('Grav course of weekly units comes back identical', sameFiles(
 //    notes) → Grav: its Courses page and all three courses; then Grav → Docsify → Grav gives the same Grav files
 convert('courses2grav', "$samples/docsify-courses-site", "$work/courses-grav");
 $missing = [];
-foreach (['00.courses/course-list.md', '01.cpt363-basic/course.md', '02.cpt363-intermediate/course.md', '03.cpt363-advanced/course.md', '01.cpt363-basic/02.modules/05.module-04/course-page.md'] as $file) {
+foreach (['00.courses/course-list.md', '01.cpt363-basic/course.md', '02.cpt363-intermediate/course.md', '03.cpt363-advanced/course.md', '01.cpt363-basic/02.modules/05.module-04/course-page.md', '03.cpt363-advanced/02.weekly-units/blog.md', '03.cpt363-advanced/02.weekly-units/week-04/item.md'] as $file) {
     if (!is_file("$work/courses-grav/$file")) {
         $missing[] = "missing: $file";
     }

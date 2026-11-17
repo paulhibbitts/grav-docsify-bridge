@@ -477,6 +477,13 @@ class CourseDocsifyReader
     {
         $site = new Site();
         $moduleFiles = array_keys($this->sidebar['modules']);
+        // a course whose sidebar lists only weeks (week-01.md …) gets a Weekly Units page, as in Open Course Space
+        $isWeekly = count($this->sidebar['modules']) > 0;
+        foreach (array_keys($this->sidebar['modules']) as $file) {
+            if (preg_match('/^week-?[0-9]+\.md$/i', $file) !== 1) {
+                $isWeekly = false;
+            }
+        }
         // module pages that aren't in the sidebar yet (a course often lists only the weeks so far)
         $unlisted = [];
         foreach (glob($this->dir . '/*.md') as $path) {
@@ -488,7 +495,11 @@ class CourseDocsifyReader
                 $unlisted[] = $file;
             }
         }
-        if (count($unlisted) === 1) {
+        if ($isWeekly && count($unlisted) > 0) {
+            // weeks still to come, as in Open Course Space
+            $this->notes[] = implode(', ', $unlisted) . (count($unlisted) === 1 ? ' isn\'t' : ' aren\'t') . ' in the sidebar, so '
+                . (count($unlisted) === 1 ? 'it\'s an unpublished week' : 'they\'re unpublished weeks') . ' (publish them in Grav when they start)';
+        } elseif (count($unlisted) === 1) {
             $this->notes[] = $unlisted[0] . ' isn\'t in the sidebar, so it\'s a hidden module (it opens from links, but isn\'t listed)';
         } elseif (count($unlisted) > 1) {
             $this->notes[] = implode(', ', $unlisted) . ' aren\'t in the sidebar, so they\'re hidden modules (they open from links, but aren\'t listed)';
@@ -500,22 +511,33 @@ class CourseDocsifyReader
             }
         }
 
+        $unitsSlug = $isWeekly ? 'weekly-units' : 'modules';
+
         $this->newCourse($site);
         $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
         // every page's Grav address first, for the links between them
         $this->addresses = ['home.md' => $this->course . '/home'];
         foreach ($moduleFiles as $file) {
-            $this->addresses[$file] = $this->course . '/modules/' . basename($file, '.md');
+            $this->addresses[$file] = $this->course . '/' . $unitsSlug . '/' . basename($file, '.md');
         }
         foreach ($menuFiles as $file) {
             $this->addresses[$file] = $this->course . '/' . basename($file, '.md');
         }
 
         $site->courseHome = $this->homeFromDocsify($site);
-        $site->modulesPage = $this->newPage('modules', '02.modules', 'module.md', ['title' => 'Modules', 'published' => true]);
+        if ($isWeekly) {
+            // the Weekly Units page lists the weeks, newest first, like Open Course Space's own
+            $site->modulesPage = $this->newPage('modules', '02.weekly-units', 'blog.md', [
+                'title' => 'Weekly Units', 'published' => true,
+                'content' => ['items' => '@self.children', 'limit' => 7, 'order' => ['by' => 'folder', 'dir' => 'desc'], 'pagination' => '1'],
+                'hide_post_summary' => true, 'hide_post_date' => true, 'hide_post_taxonomy' => true, 'child_type' => 'item',
+            ]);
+        } else {
+            $site->modulesPage = $this->newPage('modules', '02.modules', 'module.md', ['title' => 'Modules', 'published' => true]);
+        }
         foreach ($moduleFiles as $index => $file) {
             $isListed = isset($this->sidebar['modules'][$file]);
-            $site->modulesPage->children[] = $this->moduleFromDocsify($file, sprintf('%02d', $index + 1), $isListed);
+            $site->modulesPage->children[] = $this->moduleFromDocsify($file, sprintf('%02d', $index + 1), $isListed, $isWeekly);
         }
         foreach ($menuFiles as $index => $file) {
             $site->coursePages[] = $this->menuPageFromDocsify($file, sprintf('%02d', $index + 3));
@@ -572,7 +594,7 @@ class CourseDocsifyReader
 
     // A module page: the banner image and its credit become the module's header image, the # heading its description
     // (its title is the sidebar's label), and a Learning Objectives box its learning objectives
-    private function moduleFromDocsify(string $file, string $number, bool $isListed): Page
+    private function moduleFromDocsify(string $file, string $number, bool $isListed, bool $isWeek = false): Page
     {
         $slug = basename($file, '.md');
         $label = $this->sidebar['modules'][$file] ?? Helpers::titleFromSlug($slug);
@@ -580,6 +602,13 @@ class CourseDocsifyReader
         $lines = explode("\n", str_replace("\r\n", "\n", $this->readFile($file)));
         $i = $this->skipBlankLines($lines, 0);
         $headerImage = null;
+        // a week starts with its # heading (Week 4 (May 30 - Jun 5)), then its banner: the heading is its title
+        if ($isWeek && isset($lines[$i]) && str_starts_with($lines[$i], '# ')) {
+            if (!isset($this->sidebar['modules'][$file])) {
+                $settings['title'] = trim(substr($lines[$i], 2));
+            }
+            $i = $this->skipBlankLines($lines, $i + 1);
+        }
         // a banner at the top: ![Alt text](images/photo.jpg ':class=banner-image')
         if (isset($lines[$i]) && preg_match('/^!\[([^\]]*)\]\(([^)\s]+)\s+[\'"][^\'"]*:class=banner-image[^\'"]*[\'"]\)\s*$/', $lines[$i], $found) === 1) {
             $headerImage = $found;
@@ -613,21 +642,36 @@ class CourseDocsifyReader
             $settings['learning_objectives'] = trim(implode("\n", $objectives));
             $i = $this->skipBlankLines($lines, $j);
         }
-        // a module not in the sidebar opens from links but isn't listed, as in Docsify
-        if (!$isListed) {
+        // a module not in the sidebar opens from links but isn't listed, as in Docsify (a week not in the sidebar is
+        // one still to come: unpublished, as in Open Course Space)
+        if (!$isListed && !$isWeek) {
             $settings['visible'] = false;
         }
-        $page = $this->newPage('module', '02.modules/' . $number . '.' . $slug, 'course-page.md', $settings);
+        if ($isWeek) {
+            // a week: an item in the Weekly Units page's folder (week-04/item.md), which shows its first image
+            $page = $this->newPage('module', '02.weekly-units/' . $slug, 'item.md', array_merge(['published' => $isListed], $settings));
+        } else {
+            $page = $this->newPage('module', '02.modules/' . $number . '.' . $slug, 'course-page.md', $settings);
+        }
         $body = trim(implode("\n", array_slice($lines, $i)));
         if ($headerImage !== null) {
             // the header image goes beside the page like its other images; Open Course Space shows it at the top
             $this->addImage($page, $headerImage[2], $file);
-            $page->meta = array_merge($page->meta, ['header_image' => true, 'header_image_file' => basename($headerImage[2])]);
+            $page->meta = array_merge($page->meta, $isWeek ? ['header_image_file' => basename($headerImage[2])] : ['header_image' => true, 'header_image_file' => basename($headerImage[2])]);
             if ($headerImage[1] !== '') {
                 $page->meta['header_image_alt_text'] = $headerImage[1];
             }
         }
         $page->body = $this->toGravText($body, $page, $file);
+        if ($isWeek) {
+            // a week's summary, above ===, is what the Weekly Units page lists: its first heading (the week's question),
+            // as in Open Course Space. The week's own page leaves the summary out, so the full text follows it.
+            $summary = '';
+            if (preg_match('/^## .+$/m', $page->body, $found) === 1 && str_starts_with(ltrim($page->body), $found[0])) {
+                $summary = $found[0];
+            }
+            $page->body = $summary . "\n\n===\n\n" . $page->body;
+        }
         // the page starts with its description, as Open Course Space's own modules do, with the page's sections a level
         // below it (## → ###), so the list of sections beside the page doesn't start with the description
         if (isset($settings['description'])) {
