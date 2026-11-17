@@ -10,6 +10,7 @@
 //   03.cpt363-advanced – CPT363-3, organised by weekly units (only the pages that are converted)
 //   docsify-guide  – the Docsify-This Guide Site template
 //   docsify-course – the Docsify Open Course Starter Kit (its docs folder, without assets)
+//   docsify-courses-site – the Docsify-This Courses Site Template: a Courses page and three course folders
 // (a whole Open Course Space site of two courses is put together from these in test 5)
 // To update a sample after a skeleton, template or kit changes on purpose, copy its new files over the old ones.
 
@@ -88,6 +89,20 @@ $failed += report('Open Course Space site comes back identical', sameFiles("$wor
 convert('course2docsify', "$samples/03.cpt363-advanced", "$work/weeks-docsify");
 convert('course2grav', "$work/weeks-docsify", "$work/weeks-back");
 $failed += report('Grav course of weekly units comes back identical', sameFiles("$samples/03.cpt363-advanced", "$work/weeks-back/03.cpt363-advanced"));
+
+// 7. A site of several courses made in Docsify (the Docsify-This Courses Site Template, without the converter's
+//    notes) → Grav: its Courses page and all three courses; then Grav → Docsify → Grav gives the same Grav files
+convert('courses2grav', "$samples/docsify-courses-site", "$work/courses-grav");
+$missing = [];
+foreach (['00.courses/course-list.md', '01.cpt363-basic/course.md', '02.cpt363-intermediate/course.md', '03.cpt363-advanced/course.md', '01.cpt363-basic/02.modules/05.module-04/course-page.md'] as $file) {
+    if (!is_file("$work/courses-grav/$file")) {
+        $missing[] = "missing: $file";
+    }
+}
+$failed += report('Docsify site of several courses converts to Open Course Space', $missing);
+convert('courses2docsify', "$work/courses-grav", "$work/courses-docsify");
+convert('courses2grav', "$work/courses-docsify", "$work/courses-grav-again");
+$failed += report('Docsify site of several courses stays the same after another round trip', sameFiles("$work/courses-grav", "$work/courses-grav-again"));
 
 removeFolder($work);
 if ($failed === 0) {

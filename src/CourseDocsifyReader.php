@@ -28,6 +28,12 @@ class CourseDocsifyReader
     private const NEW_COURSE_FOLDER = '01.my-course';
     private const NEW_COURSE_TITLE = 'My Course';
 
+    // In a site of several courses made in Docsify (such as the Docsify-This Courses Site Template), each course's
+    // folder, title and description come from the Courses page's card for it (see CourseSite::toGrav)
+    public string $courseFolder = '';
+    public string $courseTitle = '';
+    public string $courseDescription = '';
+
     public function read(string $dir, string $top = ''): Site
     {
         $this->dir = rtrim($dir, '/');
@@ -212,11 +218,14 @@ class CourseDocsifyReader
     // A new course folder and its settings, for a course made in Docsify
     private function newCourse(Site $site): void
     {
-        $site->courseFolder = self::NEW_COURSE_FOLDER;
-        $site->coursePage = $this->newPage('course', '', 'course.md', [
-            'title' => self::NEW_COURSE_TITLE, 'published' => true, 'hide_from_menu' => true, 'course_home' => 'home',
-            'page-inject' => ['processed_content' => true],
-        ]);
+        $site->courseFolder = $this->courseFolder !== '' ? $this->courseFolder : self::NEW_COURSE_FOLDER;
+        $settings = ['title' => $this->courseTitle !== '' ? $this->courseTitle : self::NEW_COURSE_TITLE, 'published' => true, 'hide_from_menu' => true];
+        if ($this->courseDescription !== '') {
+            $settings['description'] = $this->courseDescription;
+        }
+        $settings['course_home'] = 'home';
+        $settings['page-inject'] = ['processed_content' => true];
+        $site->coursePage = $this->newPage('course', '', 'course.md', $settings);
     }
 
     // A module: its settings, with the title from the sidebar and the description from the page's heading (both may
@@ -728,6 +737,11 @@ class CourseDocsifyReader
             // a module: - [Week 1](module-01)
             if (preg_match('/^[-*] \[([^\]]+)\]\(([^)\s]+)\)\s*$/', $line, $found) === 1) {
                 $file = $this->siteFile($found[2]);
+                if ($file === 'home.md') {
+                    // the course's home page (a Home item at the top of a course's sidebar), not a module
+                    $group = null;
+                    continue;
+                }
                 if ($file !== '') {
                     $sidebar['modules'][$file] = $found[1];
                 } else {
