@@ -68,6 +68,10 @@ class Callouts
 
         // [hideifembedded] and the layout shortcodes only wrap text: their tags become hidden notes
         $markdown = preg_replace('/\[(\/?)hideifembedded\]/', '<!-- grav: [$1hideifembedded] -->', $markdown);
+        // a glossary term ([term]social facilitation[/term], or [term name="…"]) shows as plain text in Docsify, and
+        // [glossary] marks where a Glossary page's terms go (the converter writes them there)
+        $markdown = preg_replace('/\[(\/?)term((?: [^\]]*)?)\]/', '<!-- grav: [$1term$2] -->', $markdown);
+        $markdown = preg_replace('/\[glossary\s*\/?\]/', '<!-- grav: [glossary] -->', $markdown);
         $layoutNames = implode('|', self::LAYOUT_SHORTCODES);
         $markdown = preg_replace('/\[(\/?)(' . $layoutNames . ')\]/', '<!-- grav: [$1$2] -->', $markdown);
         return $markdown;
@@ -197,7 +201,8 @@ class Callouts
     public static function unknownShortcodes(string $markdown): array
     {
         $markdown = preg_replace('/```.*?```|~~~.*?~~~|`[^`\n]*`|<!--.*?-->/s', '', $markdown);
-        preg_match_all('/\[\/?([a-z][a-z0-9-]*)(?:\s[^\]]*)?\](?![(\[:])/', $markdown, $found);
+        // (a bracket written as \[, as in "\[serial online\]", is text, not a shortcode)
+        preg_match_all('/(?<!\\\\)\[\/?([a-z][a-z0-9-]*)(?:\s[^\]]*)?\](?![(\[:])/', $markdown, $found);
         return array_values(array_unique($found[1]));
     }
 
@@ -244,6 +249,8 @@ class Callouts
             $markdown
         );
         $markdown = preg_replace('/<!-- grav: \[(\/?)hideifembedded\] -->/', '[$1hideifembedded]', $markdown);
+        $markdown = preg_replace('/<!-- grav: \[(\/?)term((?: [^\]]*)?)\] -->/', '[$1term$2]', $markdown);
+        $markdown = str_replace('<!-- grav: [glossary] -->', '[glossary]', $markdown);
         // <details> made from [details] (see toDocsify) goes back to the shortcode; the summary is in the note
         $markdown = preg_replace('/<!-- grav: \[details((?: [^\]]*)?)\] --><details><summary>[^<]*<\/summary>\n/', '[details$1]', $markdown);
         $markdown = str_replace("\n</details><!-- grav: [/details] -->", '[/details]', $markdown);

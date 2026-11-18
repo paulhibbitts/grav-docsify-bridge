@@ -213,6 +213,10 @@ class DocsifyWriter
                 $head[] = '# ' . $page->title();
             }
             $hideSidebar = ['<!-- Hides the sidebar on this page -->', self::HIDE_SIDEBAR];
+            [$body, $glossary] = $this->withGlossary($page, $body, []);
+            if (count($glossary) > 0) {
+                $hideSidebar = array_merge($glossary, [''], $hideSidebar);
+            }
             $lines = array_merge([Helpers::gravNote($page), ''], Helpers::generated($head), ['', $body, ''], Helpers::generated($hideSidebar));
             $this->writeFile($path, implode("\n", $lines));
             $navbarLinks[] = '- [' . $page->title() . '](' . $path . ')';
@@ -517,12 +521,44 @@ class DocsifyWriter
     // $foot: anything the converter adds after the page's text (such as its Side Box)
     private function writePage(string $path, Page $page, array $head, string $body, array $foot = []): void
     {
+        [$body, $foot] = $this->withGlossary($page, $body, $foot);
         $lines = array_merge([Helpers::gravNote($page), ''], Helpers::generated($head), ['', trim($body)]);
         if (count($foot) > 0) {
             $lines[] = '';
             $lines = array_merge($lines, Helpers::generated($foot));
         }
         $this->writeFile($path, implode("\n", $lines));
+    }
+
+    // A Glossary page (one with glossary: in its settings) shows its terms, as Grav does: where [glossary] is in its
+    // text, or else at the end (added to $foot). Each term in bold, its definition on the next line, A to Z as in
+    // Grav. Returns [the page's text, its foot].
+    private function withGlossary(Page $page, string $body, array $foot): array
+    {
+        $entries = [];
+        foreach ((array)($page->meta['glossary'] ?? []) as $item) {
+            $term = trim((string)($item['term'] ?? ''));
+            if ($term !== '') {
+                $entries[] = ['term' => $term, 'definition' => trim((string)($item['definition'] ?? ''))];
+            }
+        }
+        if (count($entries) === 0) {
+            return [$body, $foot];
+        }
+        usort($entries, fn($a, $b) => strnatcasecmp($a['term'], $b['term']));
+        $list = [];
+        foreach ($entries as $entry) {
+            $list[] = '**' . $entry['term'] . '**<br>';
+            $list[] = $entry['definition'];
+            $list[] = '';
+        }
+        $list = array_slice($list, 0, -1);
+        // in the text, the list has its own generated marks (the foot is marked as a whole)
+        $marker = '<!-- grav: [glossary] -->';
+        if (str_contains($body, $marker)) {
+            return [str_replace($marker, $marker . "\n\n" . implode("\n", Helpers::generated($list)), $body), $foot];
+        }
+        return [$body, array_merge($list, count($foot) > 0 ? [''] : [], $foot)];
     }
 
     // Grav Markdown → Docsify Markdown: callouts, links between guide pages, then links that only work in Grav.
