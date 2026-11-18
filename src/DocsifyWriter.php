@@ -87,8 +87,9 @@ class DocsifyWriter
                 $number = (string)$sectionNumber;
             }
             $label = self::sectionLabel($guide, $section, $number);
-            $sections[] = ['page' => $section, 'label' => $label];
-            $this->writeSection($section, $guideSlug, $top, $label, $backLink);
+            $start = self::redirectPage($section);
+            $sections[] = ['page' => $section, 'label' => $label, 'start' => $start];
+            $this->writeSection($section, $guideSlug, $top, $label, $backLink, $start);
         }
 
         $menuLinks = $this->writeMenuPages($guide, $top, $homeFile);
@@ -116,15 +117,34 @@ class DocsifyWriter
             // a guide copied from Helios Open Reader may turn on Show Section Label without a label: "Section"
             $label = ($guide->meta['show_section_label'] ?? false) ? 'Section' : '';
         }
-        $hidden = ($guide->meta['show_section_label'] ?? true) === false || ($section->meta['numbered'] ?? true) === false;
+        // (Show Section Label off is any false-like value, as in the theme; numbered must be false itself)
+        $hidden = !($guide->meta['show_section_label'] ?? true) || ($section->meta['numbered'] ?? true) === false;
         if ($label === '' || $hidden) {
             return '';
         }
         return $label . ' ' . $number;
     }
 
-    // A section's page (its title, section label, Learning Objectives and text), then each of its pages
-    private function writeSection(Page $section, string $guideSlug, string $top, string $label, array $backLink): void
+    // A section with no text of its own that redirects to one of its pages (as the Pressbooks Converter's parts do):
+    // that page, which its card, Start Reading and the sidebar then lead to, since a Docsify page can't redirect.
+    // Returns null for any other section.
+    private static function redirectPage(Page $section): ?Page
+    {
+        $redirect = rtrim($section->setting('redirect'), '/');
+        if ($redirect === '' || trim($section->body) !== '' || $section->setting('learning_objectives') !== '') {
+            return null;
+        }
+        foreach ($section->children as $page) {
+            if (str_ends_with($redirect, '/' . $section->slug() . '/' . $page->slug())) {
+                return $page;
+            }
+        }
+        return null;
+    }
+
+    // A section's page (its title, section label, Learning Objectives and text), then each of its pages. A section
+    // that redirects to one of its pages lists its pages instead, in case someone opens it.
+    private function writeSection(Page $section, string $guideSlug, string $top, string $label, array $backLink, ?Page $start): void
     {
         $sectionFolder = $top . $section->slug();
         $this->copyImages($section, $sectionFolder);
@@ -144,6 +164,12 @@ class DocsifyWriter
             $head[] = '';
             $head[] = Callouts::quote('TIP', 'Learning Objectives', $objectives);
             $body = Callouts::tipsToNotes($body);
+        }
+        if ($start !== null) {
+            $head[] = '';
+            foreach ($section->children as $page) {
+                $head[] = '- [' . $page->title() . '](' . $sectionFolder . '/' . $page->slug() . '.md)';
+            }
         }
         $gravPath = '/' . $guideSlug . '/' . $section->slug();
         $this->writePage($sectionFile, $section, $head, $body, $this->sideBox($section, $gravPath, $sectionFile));
@@ -223,13 +249,32 @@ class DocsifyWriter
             $parts['label'] = $parts['label'] || $item['label'] !== '';
             $parts['description'] = $parts['description'] || $item['page']->setting('description') !== '';
         }
+        // the sections as the guide's Cards Per Row setting shows them in Grav: one per row (a guide's default) is a
+        // plain list, as long as no section has an image; two or three per row are cards
+        $perRow = (int)($guide->meta['cards_per_row'] ?? 1);
+        $listStart = ['<div class="card-list-sections">', ''];
+        $listEnd = ['</div>'];
+        if ($perRow === 1 && !$parts['image']) {
+            $listStart = [];
+            $listEnd = [];
+        } elseif ($perRow === 2) {
+            $listStart = ['<div class="card-list">', ''];
+        }
         $cards = [];
         foreach ($sections as $item) {
-            $cards = array_merge($cards, $this->sectionCard($item['page'], $item['label'], $top, $parts));
+            if ($listStart === []) {
+                // (a blank line between items spaces them out, as Grav's rows are)
+                $cards = array_merge($cards, [$this->sectionListItem($item['page'], $item['label'], $top, $item['start']), '']);
+            } else {
+                $cards = array_merge($cards, $this->sectionCard($item['page'], $item['label'], $top, $parts, $item['start']));
+            }
         }
         $firstPage = $homeFile;
         if (count($sections) > 0) {
             $firstPage = $top . $sections[0]['page']->slug() . '/README.md';
+            if ($sections[0]['start'] !== null) {
+                $firstPage = $top . $sections[0]['page']->slug() . '/' . $sections[0]['start']->slug() . '.md';
+            }
         }
 
         // a single guide's home is the site's home page, so it also keeps the original site's address
@@ -255,11 +300,11 @@ class DocsifyWriter
         $lines[] = trim($this->convert($textParts['above'], $gravPath, $homeFile));
         $lines[] = '';
 
-        $startAndCards = ['<div class="card-list-sections">', ''];
+        $startAndCards = $listStart;
         if (!$smallCover) {
             $startAndCards = array_merge([$startReading, ''], $startAndCards);
         }
-        $startAndCards = array_merge($startAndCards, $cards, ['</div>']);
+        $startAndCards = array_merge($startAndCards, $cards, $listEnd);
         $lines = array_merge($lines, Helpers::generated($startAndCards), ['']);
 
         if (trim($textParts['below']) !== '') {
@@ -312,15 +357,37 @@ class DocsifyWriter
         return '![' . $alt . '](' . $guide->setting('cover_image') . ' ":no-zoom")';
     }
 
+    // A section as a line of the guide home's list (when the guide shows one section per row): its label, its title
+    // as a link, then its description. Example: - **[Front Matter](guide/section-1/about.md)**  (a new line) Accessibility …
+    private function sectionListItem(Page $section, string $label, string $top, ?Page $start): string
+    {
+        $link = $top . $section->slug() . '/' . ($start !== null ? $start->slug() : 'README') . '.md';
+        $lines = [];
+        if ($label !== '') {
+            $lines[] = '<small>' . $label . '</small>';
+        }
+        $lines[] = '**[' . $section->title() . '](' . $link . ')**';
+        if ($section->setting('description') !== '') {
+            $lines[] = $section->setting('description');
+        }
+        // each part on its own line within the item ("  " ends a line in Markdown)
+        return '- ' . implode("  \n  ", $lines);
+    }
+
     // A section's card on the guide home: image, label, title, description (an empty <p></p> for a part another card
     // has and this one doesn't)
-    private function sectionCard(Page $section, string $label, string $top, array $parts): array
+    private function sectionCard(Page $section, string $label, string $top, array $parts, ?Page $start): array
     {
+        // the card leads to the section's page, or to the page it redirects to
+        $link = $top . $section->slug() . '/README';
+        if ($start !== null) {
+            $link = $top . $section->slug() . '/' . $start->slug();
+        }
         $card = ['<div class="card">', ''];
         $image = $section->setting('image');
         if ($image !== '') {
             // images are read from the page's own folder, links from the site's top
-            $card[] = '[![' . $section->title() . '](' . $section->slug() . '/' . $image . ' ":no-zoom")](' . $top . $section->slug() . '/README.md)';
+            $card[] = '[![' . $section->title() . '](' . $section->slug() . '/' . $image . ' ":no-zoom")](' . $link . '.md)';
             $card[] = '';
         } elseif ($parts['image']) {
             $card = array_merge($card, ['<p></p>', '']);
@@ -330,7 +397,7 @@ class DocsifyWriter
         } elseif ($parts['label']) {
             $card = array_merge($card, ['<p></p>', '']);
         }
-        $card[] = '<h2><a href="#/' . $top . $section->slug() . '/README">' . $section->title() . '</a></h2>';
+        $card[] = '<h2><a href="#/' . $link . '">' . $section->title() . '</a></h2>';
         $card[] = '';
         $description = $section->setting('description');
         if ($description !== '') {
@@ -388,7 +455,10 @@ class DocsifyWriter
                 continue;
             }
             $lines[] = '- ' . $section->title();
-            $lines[] = '  - [Overview](' . $sectionLink . ')';
+            // (a section that redirects to one of its pages has no Overview: its pages are listed on their own)
+            if ($item['start'] === null) {
+                $lines[] = '  - [Overview](' . $sectionLink . ')';
+            }
             foreach ($section->children as $page) {
                 $lines[] = '  - [' . $page->title() . '](' . $top . $section->slug() . '/' . $page->slug() . '.md)';
             }
