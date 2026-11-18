@@ -104,6 +104,9 @@ $site = $reader->read($source);
 foreach ($reader->notes as $note) {
     echo 'Note – ' . $note . "\n";
 }
+if ($site->isSingleGuide()) {
+    $single = true;
+}
 $writer = new DocsifyWriter();
 $writer->write($site, $source, $out, $single, $siteUrl);
 foreach ($writer->warnings as $warning) {

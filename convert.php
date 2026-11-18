@@ -556,6 +556,9 @@ if ($repo !== null && $course === null) {
     if (count($site->guides) === 0) {
         fail('No published guides were found in that zip. A guide that\'s switched off (Published turned off) isn\'t converted.');
     }
+    if ($site->isSingleGuide()) {
+        $single = true;
+    }
     $writer = new DocsifyWriter();
     $writer->write($site, $pagesFolder, $work . '/out', $single, $siteUrl);
     $guides = $site->guides;

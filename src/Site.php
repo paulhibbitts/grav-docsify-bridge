@@ -16,4 +16,11 @@ class Site
     public string $courseFolder = '';    // the course's own folder, e.g. '01.cpt363-basic'
     public ?Page $coursePage = null;     // the course's settings (course.md): its title, description, Course Color …
     public ?Page $headerImage = null;    // the banner on the course's home page (headerimage/ and its image)
+
+    // One guide and no Guides page (as in a book from the Pressbooks Converter): the guide is the whole site, so its
+    // Docsify version is a single guide site too
+    public function isSingleGuide(): bool
+    {
+        return count($this->guides) === 1 && $this->guidesPage === null;
+    }
 }
