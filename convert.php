@@ -208,7 +208,7 @@ function findDocsifyFolder(string $dir): string
 // listed instead of guides – a course's modules, or each course of several
 function writeNotes(string $file, array $guides, array $warnings, array $tips = [], array $courses = []): void
 {
-    $notes = ['Open Publishing Course Space Converter – conversion notes', ''];
+    $notes = ['Open Publishing Course Space Bridge – conversion notes', ''];
     if (count($courses) === 1) {
         $course = $courses[0];
         $notes[] = 'Course converted: ' . count($course->modulesPage->children) . ' modules and ' . count($course->coursePages) . ' menu pages';
@@ -320,7 +320,7 @@ function downloadGitHubZip(array $repo, string $target): void
     curl_setopt($download, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
     curl_setopt($download, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
     curl_setopt($download, CURLOPT_TIMEOUT, 120);
-    curl_setopt($download, CURLOPT_USERAGENT, 'Open Publishing Course Space Converter');
+    curl_setopt($download, CURLOPT_USERAGENT, 'Open Publishing Course Space Bridge');
     // stop a download that grows past the 200 MB limit
     curl_setopt($download, CURLOPT_NOPROGRESS, false);
     curl_setopt($download, CURLOPT_PROGRESSFUNCTION, 'stopLargeDownloads');
@@ -451,7 +451,7 @@ if ($repo !== null) {
         if (findPagesFolder($searchFolder) !== '') {
             fail('That repo has Grav pages, not a Docsify site. To convert them to Docsify, zip its pages folder and use "Grav to Docsify".');
         }
-        fail('No Docsify guide site or course was found in that repo. This converter works with guide sites and courses: a home.md, and a _sidebar.md listing their pages.');
+        fail('No Docsify guide site or course was found in that repo. This bridge works with guide sites and courses: a home.md, and a _sidebar.md listing their pages.');
     }
     $direction = 'grav';
     if (CourseSite::isDocsifySite($docsifyFolder)) {
@@ -516,12 +516,12 @@ if ($repo !== null) {
 
 if ($repo !== null && $course === null) {
     if (isCourseSite($docsifyFolder)) {
-        fail('That repo has courses in folders, like the Docsify Open MultiCourse Starter Kit. This converter works with one course, or with guides.');
+        fail('That repo has courses in folders, like the Docsify Open MultiCourse Starter Kit. This bridge works with one course, or with guides.');
     }
     $reader = new DocsifyReader();
     $site = $reader->read($docsifyFolder);
     if (count($site->guides) === 0) {
-        fail('No guides or course were found in that Docsify site. This converter works with guide sites and courses: a home.md, and a _sidebar.md listing their pages. Single pages, blogs and sites of topic pages aren\'t converted.');
+        fail('No guides or course were found in that Docsify site. This bridge works with guide sites and courses: a home.md, and a _sidebar.md listing their pages. Single pages, blogs and sites of topic pages aren\'t converted.');
     }
     // a pages folder, for the Grav site's user folder
     (new GravWriter())->write($site, $work . '/out/pages');
