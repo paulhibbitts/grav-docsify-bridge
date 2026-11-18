@@ -293,15 +293,17 @@ class Embeds
 
     // An email link written in Docsify, showing its own address: [name@example.org](mailto:name@example.org)
     // → [safe-email autolink="true"]name@example.org[/safe-email], as Open Course Space writes them (hidden from spam
-    // bots). Links with other text, such as [Email me](mailto:…), stay as they are.
+    // bots). Links with other text, such as [Email me](mailto:…), stay as they are. A plain address on a line of its
+    // own, which Docsify links but Grav doesn't, becomes the same shortcode.
     public static function emailLinksToGrav(string $markdown): string
     {
-        return preg_replace_callback('/\[([^\]]+)\]\(mailto:([^)\s]+)\)/i', function ($match) {
+        $markdown = preg_replace_callback('/\[([^\]]+)\]\(mailto:([^)\s]+)\)/i', function ($match) {
             if (strcasecmp(trim($match[1]), $match[2]) !== 0) {
                 return $match[0];
             }
             return '[safe-email autolink="true"]' . $match[2] . '[/safe-email]';
         }, $markdown);
+        return preg_replace('/^([ \t]*)([\w.+-]+@[\w-]+(?:\.[\w-]+)+)([ \t]*)$/m', '$1[safe-email autolink="true"]$2[/safe-email]$3', $markdown);
     }
 
     // Embedded pages written in Docsify as HTML (no hidden note) → Grav's embed shortcodes, as Grav 2 shows a raw

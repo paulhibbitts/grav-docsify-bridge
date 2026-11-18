@@ -550,7 +550,8 @@ class CourseDocsifyReader
         if ($sidebarText !== '') {
             $site->courseSidebar = $this->sidebarPage($sidebarText, 'contact.md');
         }
-        $footer = trim($this->readFile('_footer.md'));
+        // a rule at the top only separates Docsify's footer from the page; Grav's footer has its own section
+        $footer = trim(preg_replace('/^\s*(---|\*\*\*|___)\s*\n/', '', $this->readFile('_footer.md'), 1));
         if ($footer !== '') {
             $site->courseFooter = $this->newPage('footer', 'footer', 'default.md', ['title' => 'Footer', 'routable' => false, 'visible' => false]);
             $site->courseFooter->body = $this->toGravText($footer, $site->courseFooter, '_footer.md');
