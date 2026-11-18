@@ -691,12 +691,15 @@ class CourseDocsifyReader
         return $page;
     }
 
-    // Each heading from ## to ##### one level down (## Handouts → ### Handouts), leaving code as it is
+    // Each heading from ## to ##### one level down (## Handouts → ### Handouts), leaving code as it is. Sections that
+    // already start at ### (as in the Open Courses Starter Kit) stay as they are, so no heading level is skipped.
     private static function headingsDown(string $markdown): string
     {
         $codeParts = [];
         $markdown = Helpers::hideCode($markdown, $codeParts);
-        $markdown = preg_replace('/^(#{2,5})(\s)/m', '#$1$2', $markdown);
+        if (preg_match('/^##\s/m', $markdown) === 1) {
+            $markdown = preg_replace('/^(#{2,5})(\s)/m', '#$1$2', $markdown);
+        }
         return Helpers::showCode($markdown, $codeParts);
     }
 
