@@ -66,10 +66,6 @@ class DocsifyWriter
             $top = '';
             $homeFile = 'home.md';
         }
-        $label = $guide->setting('section_label');
-        if ($label === '') {
-            $label = 'Section';
-        }
 
         // every reading page links back to its guide home, except in a single guide, where the site's name
         // (at the top of the sidebar) is the guide's name and already links home
@@ -90,12 +86,13 @@ class DocsifyWriter
             if ($number === '') {
                 $number = (string)$sectionNumber;
             }
-            $sections[] = ['page' => $section, 'number' => $number];
-            $this->writeSection($section, $guideSlug, $top, $label, $number, $backLink);
+            $label = self::sectionLabel($guide, $section, $number);
+            $sections[] = ['page' => $section, 'label' => $label];
+            $this->writeSection($section, $guideSlug, $top, $label, $backLink);
         }
 
         $menuLinks = $this->writeMenuPages($guide, $top, $homeFile);
-        $this->writeGuideHome($guide, $homeFile, $top, $label, $sections);
+        $this->writeGuideHome($guide, $homeFile, $top, $sections);
         $this->writeSidebar($guide, $top, $sections);
         if ($this->single) {
             $this->siteMenuLinks = $menuLinks;
@@ -106,8 +103,28 @@ class DocsifyWriter
         return $this->guideCard($guide);
     }
 
+    // The label shown above a section's title, as the theme shows it (for example "Chapter 2"): the section's own
+    // Section Label (an empty one hides it), or else the guide's Section Label with the section's number. Show Section
+    // Label turned off, or a section set to numbered: false, hides the guide's label.
+    private static function sectionLabel(Page $guide, Page $section, string $number): string
+    {
+        if (array_key_exists('section_label', $section->meta)) {
+            return $section->setting('section_label');
+        }
+        $label = $guide->setting('section_label');
+        if (!array_key_exists('section_label', $guide->meta)) {
+            // a guide copied from Helios Open Reader may turn on Show Section Label without a label: "Section"
+            $label = ($guide->meta['show_section_label'] ?? false) ? 'Section' : '';
+        }
+        $hidden = ($guide->meta['show_section_label'] ?? true) === false || ($section->meta['numbered'] ?? true) === false;
+        if ($label === '' || $hidden) {
+            return '';
+        }
+        return $label . ' ' . $number;
+    }
+
     // A section's page (its title, section label, Learning Objectives and text), then each of its pages
-    private function writeSection(Page $section, string $guideSlug, string $top, string $label, string $number, array $backLink): void
+    private function writeSection(Page $section, string $guideSlug, string $top, string $label, array $backLink): void
     {
         $sectionFolder = $top . $section->slug();
         $this->copyImages($section, $sectionFolder);
@@ -117,7 +134,10 @@ class DocsifyWriter
         }
 
         $sectionFile = $sectionFolder . '/README.md';
-        $head = array_merge($backLink, ['# ' . $section->title(), '', '<small>' . $label . ' ' . $number . '</small>']);
+        $head = array_merge($backLink, ['# ' . $section->title()]);
+        if ($label !== '') {
+            $head = array_merge($head, ['', '<small>' . $label . '</small>']);
+        }
         $body = $this->convert($section->body, '/' . $guideSlug . '/' . $section->slug(), $sectionFile);
         $objectives = $section->setting('learning_objectives');
         if ($objectives !== '') {
@@ -190,14 +210,22 @@ class DocsifyWriter
 
     // The guide's home page: title and subtitle, its intro, Start Reading and a card for each section, the rest
     // of its text (below === in Grav), then the Side Box, authors line and attribution
-    private function writeGuideHome(Page $guide, string $homeFile, string $top, string $label, array $sections): void
+    private function writeGuideHome(Page $guide, string $homeFile, string $top, array $sections): void
     {
         $gravPath = '/' . $guide->slug();
         $textParts = $this->splitAtSeparator($guide->body);
 
+        // the parts any card has (image, label, description): a card without one gets an empty space for it, so all
+        // the cards have the same parts and Docsify-This lines them up in rows
+        $parts = ['image' => false, 'label' => false, 'description' => false];
+        foreach ($sections as $item) {
+            $parts['image'] = $parts['image'] || $item['page']->setting('image') !== '';
+            $parts['label'] = $parts['label'] || $item['label'] !== '';
+            $parts['description'] = $parts['description'] || $item['page']->setting('description') !== '';
+        }
         $cards = [];
         foreach ($sections as $item) {
-            $cards = array_merge($cards, $this->sectionCard($item['page'], $item['number'], $top, $label));
+            $cards = array_merge($cards, $this->sectionCard($item['page'], $item['label'], $top, $parts));
         }
         $firstPage = $homeFile;
         if (count($sections) > 0) {
@@ -284,8 +312,9 @@ class DocsifyWriter
         return '![' . $alt . '](' . $guide->setting('cover_image') . ' ":no-zoom")';
     }
 
-    // A section's card on the guide home: image, label and number, title, description
-    private function sectionCard(Page $section, string $number, string $top, string $label): array
+    // A section's card on the guide home: image, label, title, description (an empty <p></p> for a part another card
+    // has and this one doesn't)
+    private function sectionCard(Page $section, string $label, string $top, array $parts): array
     {
         $card = ['<div class="card">', ''];
         $image = $section->setting('image');
@@ -293,15 +322,22 @@ class DocsifyWriter
             // images are read from the page's own folder, links from the site's top
             $card[] = '[![' . $section->title() . '](' . $section->slug() . '/' . $image . ' ":no-zoom")](' . $top . $section->slug() . '/README.md)';
             $card[] = '';
+        } elseif ($parts['image']) {
+            $card = array_merge($card, ['<p></p>', '']);
         }
-        $card[] = $label . ' ' . $number;
-        $card[] = '';
+        if ($label !== '') {
+            $card = array_merge($card, [$label, '']);
+        } elseif ($parts['label']) {
+            $card = array_merge($card, ['<p></p>', '']);
+        }
         $card[] = '<h2><a href="#/' . $top . $section->slug() . '/README">' . $section->title() . '</a></h2>';
         $card[] = '';
         $description = $section->setting('description');
         if ($description !== '') {
             $card[] = $description;
             $card[] = '';
+        } elseif ($parts['description']) {
+            $card = array_merge($card, ['<p></p>', '']);
         }
         $card[] = '</div>';
         $card[] = '';
