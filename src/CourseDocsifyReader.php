@@ -604,9 +604,9 @@ class CourseDocsifyReader
         $headerImage = null;
         // a week starts with its # heading (Week 4 (May 30 - Jun 5)), then its banner – and so may a module (# Module 4,
         // then its banner): the heading is its title
-        $bannerNext = isset($lines[$i]) && str_starts_with($lines[$i], '# ')
-            && preg_match('/:class=banner-image/', $lines[$this->skipBlankLines($lines, $i + 1)] ?? '') === 1;
-        if (($isWeek || $bannerNext) && isset($lines[$i]) && str_starts_with($lines[$i], '# ')) {
+        $headingFirst = isset($lines[$i]) && str_starts_with($lines[$i], '# ');
+        $bannerNext = preg_match('/:class=banner-image/', $lines[$this->skipBlankLines($lines, $i + 1)] ?? '') === 1;
+        if ($headingFirst && ($isWeek || $bannerNext)) {
             if (!isset($this->sidebar['modules'][$file])) {
                 $settings['title'] = trim(substr($lines[$i], 2));
             }
