@@ -249,25 +249,25 @@ class DocsifyWriter
             $parts['label'] = $parts['label'] || $item['label'] !== '';
             $parts['description'] = $parts['description'] || $item['page']->setting('description') !== '';
         }
-        // the sections as the guide's Cards Per Row setting shows them in Grav: one per row (a guide's default) is a
-        // plain list, as long as no section has an image; two or three per row are cards
+        // the sections as the guide's Cards Per Row setting shows them in Grav: one per row (a guide's default) is
+        // Docsify-This's card-list-rows (one card per row), as long as no section has an image; two per row is
+        // card-list, and three per row card-list-sections
         $perRow = (int)($guide->meta['cards_per_row'] ?? 1);
         $listStart = ['<div class="card-list-sections">', ''];
         $listEnd = ['</div>'];
-        if ($perRow === 1 && !$parts['image']) {
-            $listStart = [];
-            $listEnd = [];
+        $rows = $perRow === 1 && !$parts['image'];
+        if ($rows) {
+            $listStart = ['<div class="card-list-rows">', ''];
         } elseif ($perRow === 2) {
             $listStart = ['<div class="card-list">', ''];
         }
         $cards = [];
+        if ($rows) {
+            // cards one under the other don't need to line up, so no empty spaces
+            $parts = ['image' => false, 'label' => false, 'description' => false];
+        }
         foreach ($sections as $item) {
-            if ($listStart === []) {
-                // (a blank line between items spaces them out, as Grav's rows are)
-                $cards = array_merge($cards, [$this->sectionListItem($item['page'], $item['label'], $top, $item['start']), '']);
-            } else {
-                $cards = array_merge($cards, $this->sectionCard($item['page'], $item['label'], $top, $parts, $item['start']));
-            }
+            $cards = array_merge($cards, $this->sectionCard($item['page'], $item['label'], $top, $parts, $item['start']));
         }
         $firstPage = $homeFile;
         if (count($sections) > 0) {
@@ -355,23 +355,6 @@ class DocsifyWriter
             $alt = $guide->title() . ' cover';
         }
         return '![' . $alt . '](' . $guide->setting('cover_image') . ' ":no-zoom")';
-    }
-
-    // A section as a line of the guide home's list (when the guide shows one section per row): its label, its title
-    // as a link, then its description. Example: - **[Front Matter](guide/section-1/about.md)**  (a new line) Accessibility …
-    private function sectionListItem(Page $section, string $label, string $top, ?Page $start): string
-    {
-        $link = $top . $section->slug() . '/' . ($start !== null ? $start->slug() : 'README') . '.md';
-        $lines = [];
-        if ($label !== '') {
-            $lines[] = '<small>' . $label . '</small>';
-        }
-        $lines[] = '**[' . $section->title() . '](' . $link . ')**';
-        if ($section->setting('description') !== '') {
-            $lines[] = $section->setting('description');
-        }
-        // each part on its own line within the item ("  " ends a line in Markdown)
-        return '- ' . implode("  \n  ", $lines);
     }
 
     // A section's card on the guide home: image, label, title, description (an empty <p></p> for a part another card
