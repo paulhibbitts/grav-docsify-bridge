@@ -41,14 +41,30 @@ class Callouts
     {
         // [name attributes]text[/name] → a callout. Several shortcodes share one callout type, so a hidden note
         // keeps the shortcode (and its attributes) for the way back.
-        // A box inside another (such as an [exercise] inside an [announcement]) is converted first: each pass takes
-        // the boxes with no other box inside them, until none are left.
+        // A box inside another (an [exercise] in an [announcement]) is converted first: each pass takes the boxes
+        // with no other box inside, until none are left
         $names = implode('|', array_keys(self::SHORTCODES));
-        // (a box already converted only has its tag in a hidden note, "grav: [exercise]", which doesn't count)
-        $innermost = '/\[(' . $names . ')((?: [^\]]*)?)\]\n?((?:(?!(?<!grav: )\[(?:' . $names . ')[ \]]).)*?)\[\/\1\]/s';
+        $openTag = '\[(?:' . $names . ')[ \]]';
+        // the box's text: runs of text without "[", or a "[" that doesn't open a box (a converted box's tag, in a
+        // hidden note after "grav: ", doesn't count)
+        $text = '(?:[^\[]++|(?!' . $openTag . ')\[|(?<=grav: )\[)*?';
+        $innermost = '/\[(' . $names . ')((?: [^\]]*)?)\]\n?(' . $text . ')\[\/\1\]/s';
         do {
-            $markdown = preg_replace_callback($innermost, [self::class, 'shortcodeToCallout'], $markdown, -1, $count);
+            $converted = preg_replace_callback($innermost, [self::class, 'shortcodeToCallout'], $markdown, -1, $count);
+            if ($converted === null) {
+                break; // the text was too long for the pattern: leave it as it is rather than lose it
+            }
+            $markdown = $converted;
         } while ($count > 0);
+
+        // [excerpt]…[/excerpt] (a quoted passage, as in Pressbooks books) → a quote, with a hidden note for the way back
+        $markdown = preg_replace_callback('/\[excerpt\]\n?(.*?)\[\/excerpt\]/s', function ($match) {
+            $text = $match[1];
+            if (str_ends_with($text, "\n")) {
+                $text = substr($text, 0, -1);
+            }
+            return "<!-- grav: [excerpt] -->\n" . Helpers::quoteLines($text);
+        }, $markdown);
 
         // Content only for embedded pages (in an LMS) stays in Grav: it's kept inside a hidden note
         $markdown = preg_replace_callback(
@@ -253,6 +269,15 @@ class Callouts
         $markdown = preg_replace('/<!-- grav: \[(\/?)hideifembedded\] -->/', '[$1hideifembedded]', $markdown);
         $markdown = preg_replace('/<!-- grav: \[(\/?)term((?: [^\]]*)?)\] -->/', '[$1term$2]', $markdown);
         $markdown = str_replace('<!-- grav: [glossary] -->', '[glossary]', $markdown);
+        // a quote with the [excerpt] note before it → [excerpt]…[/excerpt]
+        $markdown = preg_replace_callback('/<!-- grav: \[excerpt\] -->\n((?:>[^\n]*\n?)+)/', function ($match) {
+            $lines = explode("\n", rtrim($match[1], "\n"));
+            foreach ($lines as $index => $line) {
+                $lines[$index] = preg_replace('/^> ?/', '', $line);
+            }
+            $after = str_ends_with($match[1], "\n") ? "\n" : '';
+            return "[excerpt]\n" . implode("\n", $lines) . "\n[/excerpt]" . $after;
+        }, $markdown);
         // <details> made from [details] (see toDocsify) goes back to the shortcode; the summary is in the note
         $markdown = preg_replace('/<!-- grav: \[details((?: [^\]]*)?)\] --><details><summary>[^<]*<\/summary>\n/', '[details$1]', $markdown);
         $markdown = str_replace("\n</details><!-- grav: [/details] -->", '[/details]', $markdown);
@@ -263,6 +288,18 @@ class Callouts
         $markdown = preg_replace('/<!-- grav: \[(\/?)(' . $layoutNames . ')\] -->/', '[$1$2]', $markdown);
         $markdown = str_replace("<!-- grav: [!TIP] -->\n> [!NOTE]", '> [!TIP]', $markdown);
 
+        // a callout inside another comes back on the next pass, once the outer one is a shortcode again
+        do {
+            $before = $markdown;
+            $markdown = self::calloutsToShortcodes($markdown);
+        } while ($markdown !== $before);
+        return $markdown;
+    }
+
+    // Each callout (> [!TIP] / > **Reflection** …) back to its shortcode: the one in the hidden note before it, or
+    // else the one whose callout type and default heading match. One level at a time (see toGrav()).
+    private static function calloutsToShortcodes(string $markdown): string
+    {
         $lines = explode("\n", $markdown);
         $result = [];
         $i = 0;
