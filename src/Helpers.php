@@ -85,10 +85,25 @@ class Helpers
         foreach ($extra as $name => $value) {
             $where[$name] = $value;
         }
-        // (with any --> written as --\u003e, which JSON reads back the same, so it can't end the comment)
-        $firstLine = str_replace('-->', '--\\u003e', json_encode($where, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         // a comment ends at -->, so any --> in the front matter is written as --&gt;
         $yaml = rtrim(str_replace('-->', '--&gt;', $page->yaml));
+        // Docsify ends a comment early at a line that could start a new block (an empty line, or one starting with a
+        // heading, list item, quote, table row or code fence, as in a setting of several lines), so each one is
+        // written as "." and its text kept in the first line, to put it back exactly
+        $yamlLines = explode("\n", $yaml);
+        foreach ($yamlLines as $number => $line) {
+            if ($yaml !== '' && preg_match('/^\s*$|^ {0,3}([#>*+=_`~<|-]|\d+[.)])/', $line) === 1) {
+                $where['lines'][$number] = $line;
+                $yamlLines[$number] = '.';
+            }
+        }
+        $yaml = implode("\n", $yamlLines);
+        // (with any --> written as --\u003e, which JSON reads back the same, so it can't end the comment)
+        $firstLine = str_replace('-->', '--\\u003e', json_encode($where, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        // no empty line for a page without settings: Docsify would end the comment there and show the note
+        if ($yaml === '') {
+            return '<!-- grav: ' . $firstLine . "\n-->";
+        }
         return '<!-- grav: ' . $firstLine . "\n" . $yaml . "\n-->";
     }
 
@@ -125,9 +140,17 @@ class Helpers
                 unset($where[$name]);
             }
         }
+        // the front matter's lines written as "." (see gravNote())
+        $yamlLines = explode("\n", $match[2]);
+        foreach ($where['lines'] ?? [] as $number => $line) {
+            if (is_string($line) && ($yamlLines[$number] ?? '') === '.') {
+                $yamlLines[$number] = $line;
+            }
+        }
+        unset($where['lines']);
         return [
             'where' => $where,
-            'yaml' => str_replace('--&gt;', '-->', $match[2]),
+            'yaml' => str_replace('--&gt;', '-->', implode("\n", $yamlLines)),
             'rest' => $match[3],
         ];
     }
