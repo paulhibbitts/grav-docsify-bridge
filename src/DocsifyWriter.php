@@ -566,13 +566,26 @@ class DocsifyWriter
             return [$body, $foot];
         }
         usort($entries, fn($a, $b) => strnatcasecmp($a['term'], $b['term']));
+        // a long glossary gets an A–Z letter bar and a heading for each letter, as Grav shows it (HTML headings, so
+        // each keeps the id its letter links to and stays out of the sidebar)
+        $byLetter = count($entries) > 26;
         $list = [];
+        $letters = [];
         foreach ($entries as $entry) {
+            $letter = strtoupper(substr($entry['term'], 0, 1));
+            if ($byLetter && ctype_alpha($letter) && !in_array($letter, $letters, true)) {
+                $list[] = '<h2 id="' . strtolower($letter) . '">' . $letter . '</h2>';
+                $list[] = '';
+                $letters[] = $letter;
+            }
             $list[] = '**' . $entry['term'] . '**<br>';
             $list[] = $entry['definition'];
             $list[] = '';
         }
         $list = array_slice($list, 0, -1);
+        if ($byLetter) {
+            $list = array_merge([Callouts::letterBar($letters), ''], $list);
+        }
         // in the text, the list has its own generated marks (the foot is marked as a whole)
         $marker = '<!-- grav: [glossary] -->';
         if (str_contains($body, $marker)) {

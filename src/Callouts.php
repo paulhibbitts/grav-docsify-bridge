@@ -99,15 +99,22 @@ class Callouts
     private static function addLetterBar(array $match): string
     {
         preg_match_all('/^## ([A-Z])$/m', $match[1], $found);
+        return "[topics]\n" . self::letterBar($found[1]) . "\n\n" . $match[1] . '[/topics]';
+    }
+
+    // The Starter Kits' A–Z letter bar: each letter in $letters links to its heading, the others are plain text.
+    // Example: ['A', 'C'] → [A](#a)|B|[C](#c)|D|…
+    public static function letterBar(array $letters): string
+    {
         $bar = [];
         foreach (range('A', 'Z') as $letter) {
-            if (in_array($letter, $found[1], true)) {
+            if (in_array($letter, $letters, true)) {
                 $bar[] = '[' . $letter . '](#' . strtolower($letter) . ')';
             } else {
                 $bar[] = $letter;
             }
         }
-        return "[topics]\n" . implode('|', $bar) . "\n\n" . $match[1] . '[/topics]';
+        return implode('|', $bar);
     }
 
     // A letter bar written by addLetterBar (just after the hidden [topics] note) is dropped again, as Grav makes its
