@@ -348,7 +348,14 @@ class DocsifyWriter
             $details[] = '';
         }
         $details[] = $startReading;
-        return array_merge(['<div class="guide-cover">', '', $this->coverImage($guide), '', '<div>', ''], $details, ['', '</div>', '', '</div>']);
+        // a portrait cover (taller than wide, such as a book cover) is shown whole, as Grav does
+        $class = 'guide-cover';
+        $coverFile = $this->pagesDir . '/' . $guide->folder . '/' . $guide->setting('cover_image');
+        $size = is_file($coverFile) ? getimagesize($coverFile) : false;
+        if ($size !== false && $size[1] > $size[0]) {
+            $class .= ' guide-cover-portrait';
+        }
+        return array_merge(['<div class="' . $class . '">', '', $this->coverImage($guide), '', '<div>', ''], $details, ['', '</div>', '', '</div>']);
     }
 
     // The cover image, from the guide's own folder (beside its home page). Without alt text, "<title> cover", as in Grav.

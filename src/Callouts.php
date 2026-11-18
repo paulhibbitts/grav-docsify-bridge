@@ -41,12 +41,14 @@ class Callouts
     {
         // [name attributes]text[/name] → a callout. Several shortcodes share one callout type, so a hidden note
         // keeps the shortcode (and its attributes) for the way back.
+        // A box inside another (such as an [exercise] inside an [announcement]) is converted first: each pass takes
+        // the boxes with no other box inside them, until none are left.
         $names = implode('|', array_keys(self::SHORTCODES));
-        $markdown = preg_replace_callback(
-            '/\[(' . $names . ')((?: [^\]]*)?)\]\n?(.*?)\[\/\1\]/s',
-            [self::class, 'shortcodeToCallout'],
-            $markdown
-        );
+        // (a box already converted only has its tag in a hidden note, "grav: [exercise]", which doesn't count)
+        $innermost = '/\[(' . $names . ')((?: [^\]]*)?)\]\n?((?:(?!(?<!grav: )\[(?:' . $names . ')[ \]]).)*?)\[\/\1\]/s';
+        do {
+            $markdown = preg_replace_callback($innermost, [self::class, 'shortcodeToCallout'], $markdown, -1, $count);
+        } while ($count > 0);
 
         // Content only for embedded pages (in an LMS) stays in Grav: it's kept inside a hidden note
         $markdown = preg_replace_callback(
