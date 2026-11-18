@@ -291,6 +291,19 @@ class Embeds
         }, $markdown);
     }
 
+    // An email link written in Docsify, showing its own address: [name@example.org](mailto:name@example.org)
+    // → [safe-email autolink="true"]name@example.org[/safe-email], as Open Course Space writes them (hidden from spam
+    // bots). Links with other text, such as [Email me](mailto:…), stay as they are.
+    public static function emailLinksToGrav(string $markdown): string
+    {
+        return preg_replace_callback('/\[([^\]]+)\]\(mailto:([^)\s]+)\)/i', function ($match) {
+            if (strcasecmp(trim($match[1]), $match[2]) !== 0) {
+                return $match[0];
+            }
+            return '[safe-email autolink="true"]' . $match[2] . '[/safe-email]';
+        }, $markdown);
+    }
+
     // Embedded pages written in Docsify as HTML (no hidden note) → Grav's embed shortcodes, as Grav 2 shows a raw
     // <iframe> as text: Google Slides → [googleslides], YouTube → [youtube], H5P → [h5p] (which resizes it, so H5P's
     // resizer script is left out), anything else → [iframe url="…" /] (16:9 inside the Starter Kits'
@@ -314,6 +327,10 @@ class Embeds
             }
             if (str_contains($url, '/h5p/embed/') || str_contains($url, 'h5p.com/content/')) {
                 return '[h5p url="' . $url . '"' . $title . ' /]';
+            }
+            // a PDF shown with Google's document viewer: docs.google.com/viewer?url=https://…/file.pdf
+            if (preg_match('/docs\.google\.com\/viewer\?(?:.*&)?url=([^&]+\.pdf)/i', $url, $found) === 1) {
+                return '[pdf]' . urldecode($found[1]) . '[/pdf]';
             }
             if (preg_match('/youtube(?:-nocookie)?\.com\/embed\/([A-Za-z0-9_-]+)/', $url, $found) === 1) {
                 return '[youtube]https://www.youtube.com/watch?v=' . $found[1] . '[/youtube]';

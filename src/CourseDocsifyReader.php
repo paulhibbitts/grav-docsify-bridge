@@ -735,6 +735,7 @@ class CourseDocsifyReader
         $markdown = Embeds::iconsToGrav($markdown);
         $markdown = Embeds::iframesToGrav($markdown);
         $markdown = Embeds::embedlyCardsToGrav($markdown);
+        $markdown = Embeds::emailLinksToGrav($markdown);
         $markdown = Links::imageOptionsToGrav($markdown);
         $markdown = Links::mapToGrav($markdown, $this->addresses);
         $markdown = Links::newTabToGrav($markdown);

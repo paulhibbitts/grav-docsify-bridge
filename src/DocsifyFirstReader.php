@@ -1051,6 +1051,7 @@ class DocsifyFirstReader
         $markdown = Embeds::iconsToGrav($markdown);
         $markdown = Embeds::iframesToGrav($markdown);
         $markdown = Embeds::embedlyCardsToGrav($markdown);
+        $markdown = Embeds::emailLinksToGrav($markdown);
         $markdown = $this->imageGridsToImages($markdown);
         $markdown = Links::imageOptionsToGrav($markdown);
         // links to pages whose Grav address is known (from the sidebars); any others are worked out from their path
