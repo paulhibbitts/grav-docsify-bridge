@@ -349,7 +349,7 @@ class Embeds
     // image option).
     public static function iconsToGrav(string $markdown): string
     {
-        // Font Awesome 4.7's own icons (as the converter writes sidebar icons): the same name
+        // Font Awesome 4.7's own icons (as older converted sites have them): the same name
         $markdown = preg_replace('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa\/([a-z0-9-]+)\.svg[^)\s]*\)/', '[fa="$1"][/fa] ', $markdown);
         $markdown = preg_replace_callback('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa[67]-(solid|regular|brands)\/([a-z0-9-]+)\.svg[^)\s]*\)/', function ($match) {
             $name = $match[2];
