@@ -275,4 +275,23 @@ class Helpers
 
     // a character that never appears in written text (Unicode private use), to mark the placeholders
     public const CODE_MARK = "\u{E000}";
+
+    // Turns runs of blank lines into one blank line – except next to an embed's note line, where the extra blank line
+    // lets the way back restore the blank line beside the shortcode.
+    public static function collapseBlankLines(string $text): string
+    {
+        return preg_replace_callback("/\n{3,}/", function ($match) use ($text) {
+            $linesBefore = explode("\n", substr($text, 0, $match[0][1]));
+            $lineAfter = explode("\n", substr($text, $match[0][1] + strlen($match[0][0])))[0];
+            // the note is the line above the embed's HTML, so it's two lines up when the blank lines come after
+            $noteBefore = self::isEmbedNote($linesBefore[count($linesBefore) - 2] ?? '');
+            $noteAfter = self::isEmbedNote($lineAfter);
+            return ($noteBefore || $noteAfter) ? "\n\n\n" : "\n\n";
+        }, $text, -1, $count, PREG_OFFSET_CAPTURE);
+    }
+
+    private static function isEmbedNote(string $line): bool
+    {
+        return str_starts_with(ltrim($line, '> '), '<!-- grav-embed:');
+    }
 }

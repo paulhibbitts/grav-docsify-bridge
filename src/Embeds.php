@@ -249,6 +249,8 @@ class Embeds
 
     public static function toGrav(string $markdown): string
     {
+        // Docsify's {docsify-ignore} comments keep a heading out of the sidebar; Grav has no use for them
+        $markdown = preg_replace('/[ \t]*<!--\s*\{docsify-ignore(?:-all)?\}\s*-->/', '', $markdown);
         // a hidden line whose following headings moved up: they move back down (## → ###), outside code
         if (preg_match('/<!-- ' . self::NOTE . '-line-headings-up: /', $markdown) === 1) {
             $codeParts = [];
@@ -274,6 +276,19 @@ class Embeds
             return '[button label="' . str_replace('"', '&quot;', $match[1]) . '" url="' . $match[2] . '" /]';
         }, $markdown);
         return $markdown;
+    }
+
+    // An Embedly card made by hand in Docsify: <a class="embedly-card" … href="https://example.org/article">…</a>
+    // → [embedly]https://example.org/article[/embedly], Grav's own shortcode (the card shows the page's title itself).
+    // Only for pages made in Docsify – a page this bridge wrote keeps its Grav text exactly, cards and all.
+    public static function embedlyCardsToGrav(string $markdown): string
+    {
+        return preg_replace_callback('/<a\s[^>]*class="embedly-card"[^>]*>.*?<\/a>/is', function ($match) {
+            if (preg_match('/\shref="([^"]+)"/i', $match[0], $found) !== 1) {
+                return $match[0];
+            }
+            return '[embedly]' . html_entity_decode($found[1], ENT_QUOTES) . '[/embedly]';
+        }, $markdown);
     }
 
     // Embedded pages written in Docsify as HTML (no hidden note) → Grav's embed shortcodes, as Grav 2 shows a raw

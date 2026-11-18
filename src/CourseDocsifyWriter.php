@@ -244,7 +244,7 @@ class CourseDocsifyWriter
     // A stretch of the home page's own text (often just the blank lines between its parts), converted
     private function ownHomeText(array $lines): string
     {
-        return preg_replace("/\n{3,}/", "\n\n", $this->convert(implode("\n", $lines), $this->course . '/home', 'home.md'));
+        return Helpers::collapseBlankLines($this->convert(implode("\n", $lines), $this->course . '/home', 'home.md'));
     }
 
     // One part of the home page, with its Grav settings and the page-inject line it came from in hidden notes, and a

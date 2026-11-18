@@ -272,7 +272,7 @@ class CourseDocsifyReader
             return "\n" . $inject[1] . "\n";
         }, $note['rest']);
         // the parts' blank lines are left behind where they were taken out
-        $home->body = $this->authorText(preg_replace("/\n{3,}/", "\n\n", $ownText), $note);
+        $home->body = $this->authorText(Helpers::collapseBlankLines($ownText), $note);
         // the heading shows the course's name (after its header image): a new heading renames the course
         $heading = '/<!-- grav:gen -->\n(?:!\[[^\n]*\n\n)?# (.+?)\n<!-- \/grav:gen -->/';
         if ($site->coursePage !== null && preg_match($heading, $note['rest'], $found) === 1 && trim($found[1]) !== $site->coursePage->title()) {
@@ -602,8 +602,11 @@ class CourseDocsifyReader
         $lines = explode("\n", str_replace("\r\n", "\n", $this->readFile($file)));
         $i = $this->skipBlankLines($lines, 0);
         $headerImage = null;
-        // a week starts with its # heading (Week 4 (May 30 - Jun 5)), then its banner: the heading is its title
-        if ($isWeek && isset($lines[$i]) && str_starts_with($lines[$i], '# ')) {
+        // a week starts with its # heading (Week 4 (May 30 - Jun 5)), then its banner – and so may a module (# Module 4,
+        // then its banner): the heading is its title
+        $bannerNext = isset($lines[$i]) && str_starts_with($lines[$i], '# ')
+            && preg_match('/:class=banner-image/', $lines[$this->skipBlankLines($lines, $i + 1)] ?? '') === 1;
+        if (($isWeek || $bannerNext) && isset($lines[$i]) && str_starts_with($lines[$i], '# ')) {
             if (!isset($this->sidebar['modules'][$file])) {
                 $settings['title'] = trim(substr($lines[$i], 2));
             }
@@ -629,6 +632,12 @@ class CourseDocsifyReader
             if ($heading !== $label) {
                 $settings['description'] = $heading;
             }
+            $i = $this->skipBlankLines($lines, $i + 1);
+        }
+        // the description as this bridge writes it: a ## heading kept out of Docsify's sidebar with {docsify-ignore}
+        if (!isset($settings['description']) && isset($lines[$i])
+            && preg_match('/^## (.+?)\s*<!--\s*\{docsify-ignore\}\s*-->\s*$/', $lines[$i], $found) === 1) {
+            $settings['description'] = trim($found[1]);
             $i = $this->skipBlankLines($lines, $i + 1);
         }
         // a Learning Objectives box: > [!TIP] then > **Learning Objectives**, then its lines
@@ -725,6 +734,7 @@ class CourseDocsifyReader
         $markdown = Embeds::toGrav($markdown);
         $markdown = Embeds::iconsToGrav($markdown);
         $markdown = Embeds::iframesToGrav($markdown);
+        $markdown = Embeds::embedlyCardsToGrav($markdown);
         $markdown = Links::imageOptionsToGrav($markdown);
         $markdown = Links::mapToGrav($markdown, $this->addresses);
         $markdown = Links::newTabToGrav($markdown);
