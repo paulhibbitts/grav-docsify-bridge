@@ -344,14 +344,14 @@ class Embeds
 
     // Icons written in Docsify (no hidden note): :fas fa-calendar fa-pull-left: → [fa="calendar"][/fa], and the
     // regular style (far) → Font Awesome 4's -o name, as Grav uses: :far fa-calendar: → [fa="calendar-o"][/fa].
-    // Options such as fa-fw are left out. Font Awesome icons shown as images from api.iconify.design (as in the
-    // Starter Kits' sidebar links) become icons too: Grav can't show those images (it reads ?height=16 as its own
+    // Options such as fa-fw are left out. Font Awesome 4, 6 or 7 icons shown as images from api.iconify.design (as in
+    // the Starter Kits' sidebar links) become icons too: Grav can't show those images (it reads ?height=16 as its own
     // image option).
     public static function iconsToGrav(string $markdown): string
     {
         // Font Awesome 4.7's own icons (as the converter writes sidebar icons): the same name
         $markdown = preg_replace('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa\/([a-z0-9-]+)\.svg[^)\s]*\)/', '[fa="$1"][/fa] ', $markdown);
-        $markdown = preg_replace_callback('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa6-(solid|regular|brands)\/([a-z0-9-]+)\.svg[^)\s]*\)/', function ($match) {
+        $markdown = preg_replace_callback('/!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/fa[67]-(solid|regular|brands)\/([a-z0-9-]+)\.svg[^)\s]*\)/', function ($match) {
             $name = $match[2];
             if ($match[1] === 'regular' && !str_ends_with($name, '-o')) {
                 $name .= '-o';

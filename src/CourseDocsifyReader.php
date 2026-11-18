@@ -415,7 +415,7 @@ class CourseDocsifyReader
     }
 
     // A sidebar link with an icon image in front, as the converter and the Starter Kits write them → the theme's icon
-    // before the link: [![Calendar Icon](https://api.iconify.design/fa/calendar.svg?…)Calendar](…) → [fa="calendar"][/fa][Calendar](…)
+    // before the link: [![Calendar Icon](https://api.iconify.design/fa7-solid/calendar.svg?…)Calendar](…) → [fa="calendar"][/fa][Calendar](…)
     private static function iconLinkToGrav(string $link): string
     {
         if (preg_match('/^\[(!\[[^\]]*\]\(https:\/\/api\.iconify\.design\/[^)]*\))\s*/', $link, $found) !== 1) {

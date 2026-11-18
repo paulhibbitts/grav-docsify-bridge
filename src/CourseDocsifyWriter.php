@@ -350,15 +350,22 @@ class CourseDocsifyWriter
         return '<!-- grav:sidebar-group ' . str_replace('-->', '-->', $json) . ' -->';
     }
 
-    // A sidebar link with its icon in front, as the Starter Kits show them: an image from api.iconify.design, which has
-    // Font Awesome 4.7's icons under the theme's own names ([fa="calendar-o"] → fa/calendar-o.svg).
-    // Example: [Calendar](https://…) → [![Calendar Icon](https://api.iconify.design/fa/calendar.svg?height=16&color=%23808080)Calendar](https://…)
+    // A sidebar link with its icon in front, as the Starter Kits show them: an image from api.iconify.design. Its
+    // Font Awesome 7 set is the one the theme uses, and it knows old and new names (check-circle and circle-check).
+    // An old outline name drops its "-o" and uses the regular style: [fa="calendar-o"] → fa7-regular/calendar.svg.
+    // Example: [Calendar](https://…) → [![Calendar Icon](https://api.iconify.design/fa7-solid/calendar.svg?height=16&color=%23808080)Calendar](https://…)
     private static function withIconImage(string $link, string $icon): string
     {
         if (preg_match('/^\[fa=?"?([a-z0-9-]+)/', $icon, $found) !== 1 || preg_match('/^\[(.*)\]\(/s', $link, $text) !== 1) {
             return $link;
         }
-        $image = '![' . $text[1] . ' Icon](https://api.iconify.design/fa/' . $found[1] . '.svg?height=16&color=%23808080)';
+        $name = preg_replace('/^fa-/', '', $found[1]);
+        $set = 'fa7-solid';
+        if (str_ends_with($name, '-o')) {
+            $set = 'fa7-regular';
+            $name = substr($name, 0, -2);
+        }
+        $image = '![' . $text[1] . ' Icon](https://api.iconify.design/' . $set . '/' . $name . '.svg?height=16&color=%23808080)';
         return '[' . $image . substr($link, 1);
     }
 
