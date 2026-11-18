@@ -96,7 +96,10 @@ class DocsifyWriter
         $this->writeGuideHome($guide, $homeFile, $top, $sections);
         $this->writeSidebar($guide, $top, $sections);
         if ($this->single) {
-            $this->siteMenuLinks = $menuLinks;
+            // the site's name first, linked home: Docsify-This shows it at the top of pages without a sidebar, and
+            // on phones, where the sidebar starts closed
+            $name = $guide->setting('menu') !== '' ? $guide->setting('menu') : $guide->title();
+            $this->siteMenuLinks = array_merge(['- [' . $name . '](home.md ":class=site-title")'], $menuLinks);
         } else {
             $navbar = array_merge(['- [All Guides](home.md)'], $menuLinks);
             $this->writeFile($guideSlug . '/_navbar.md', implode("\n", $navbar));
@@ -451,13 +454,23 @@ class DocsifyWriter
             $lines[] = '- ' . $section->title();
             // (a section that redirects to one of its pages has no Overview: its pages are listed on their own)
             if ($item['start'] === null) {
-                $lines[] = '  - [Overview](' . $sectionLink . ')';
+                $lines[] = '  - [' . self::overviewLabel($section) . '](' . $sectionLink . ')';
             }
             foreach ($section->children as $page) {
                 $lines[] = '  - [' . $page->title() . '](' . $top . $section->slug() . '/' . $page->slug() . '.md)';
             }
         }
         $this->writeFile($top . '_sidebar.md', implode("\n", $lines));
+    }
+
+    // A section's overview link: "Chapter 2 Overview" when its title starts with a number like that, or else
+    // "Overview" (Previous/Next show this text, so the number says which overview it is)
+    private static function overviewLabel(Page $section): string
+    {
+        if (preg_match('/^((?:Chapter|Module|Part|Unit|Week|Section)\s+\d+)/i', $section->title(), $found) === 1) {
+            return $found[1] . ' Overview';
+        }
+        return 'Overview';
     }
 
     // A guide's card on the Guides page: cover image, title (with any badge), subtitle, authors and edition

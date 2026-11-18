@@ -567,10 +567,13 @@ if ($repo !== null && $course === null) {
     }
     $warnings = array_values(array_unique(array_merge($reader->notes, $writer->warnings)));
     // the converter doesn't know the site's name or favicon (Grav keeps them outside the pages folder), so it can't add them
-    $tips = ['to show your site\'s name at the top of pages without a sidebar (and on phones), add this as the first line of '
-        . 'each _navbar.md: - [Your Site Name](home.md ":class=site-title")',
-        'to use your Grav site\'s favicon, copy it from user/themes/mytheme/images/favicon/ into the Docsify site and add '
+    $tips = ['to use your Grav site\'s favicon, copy it from user/themes/mytheme/images/favicon/ into the Docsify site and add '
         . '&loadFavicon= with its file name (such as favicon.png) to the Docsify-This link'];
+    // (a single guide site already has its name in _navbar.md)
+    if (!$single) {
+        array_unshift($tips, 'to show your site\'s name at the top of pages without a sidebar (and on phones), add this as the first line of '
+            . 'each _navbar.md: - [Your Site Name](home.md ":class=site-title")');
+    }
 }
 if ($course !== null && count($courses) === 0) {
     $courses = [$course];
