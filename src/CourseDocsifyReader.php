@@ -318,6 +318,7 @@ class CourseDocsifyReader
         }, $note['rest']);
         // the parts' blank lines are left behind where they were taken out
         $home->body = $this->authorText(Helpers::collapseBlankLines($ownText), $note);
+        $this->addNotedImages($home, $note);
         // the heading shows the course's name (after its header image): a new heading renames the course
         $heading = '/<!-- grav:gen -->\n(?:!\[[^\n]*\n\n)?# (.+?)\n<!-- \/grav:gen -->/';
         if ($site->coursePage !== null && preg_match($heading, $note['rest'], $found) === 1 && trim($found[1]) !== $site->coursePage->title()) {

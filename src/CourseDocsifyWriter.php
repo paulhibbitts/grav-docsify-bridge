@@ -132,19 +132,21 @@ class CourseDocsifyWriter
             }
         }
         // the description as a ## heading, left out of the sidebar's list of the page's sections
-        // ({docsify-ignore}); the text's own copy of it is hidden below (see withoutRepeatedHeading())
+        // ({docsify-ignore}); a copy of it as the text's first heading is hidden (see withoutRepeatedHeading())
         $description = $module->setting('description');
+        $body = $this->withImagesFolder($module);
         if ($description !== '') {
+            $body = $this->withoutRepeatedHeading($body, $description);
+        }
+        // (not when the text has it anyway, as when an LMS module's description is its first paragraph: Grav shows
+        // a description only on the module's card, so the page would repeat it)
+        if ($description !== '' && !self::textHas($body, $description)) {
             $head[] = '';
             $head[] = '## ' . $description . ' <!-- {docsify-ignore} -->';
         }
         if ($module->setting('learning_objectives') !== '') {
             $head[] = '';
             $head[] = Callouts::quote('TIP', 'Learning Objectives', $module->setting('learning_objectives'));
-        }
-        $body = $this->withImagesFolder($module);
-        if ($description !== '') {
-            $body = $this->withoutRepeatedHeading($body, $description);
         }
         $body = $this->convert($body, $gravPath, $file);
         $lines = array_merge([$this->note($module), ''], Helpers::generated($head), ['', trim($body)]);
@@ -217,6 +219,20 @@ class CourseDocsifyWriter
         $this->writeFile($file, implode("\n", $lines));
     }
 
+    // Whether the start of the text has these words (within its first few hundred characters, where a module's
+    // first paragraph is), ignoring hidden notes, Markdown marks (**, #, > …), spacing and case
+    private static function textHas(string $text, string $words): bool
+    {
+        $plain = function (string $value): string {
+            $value = preg_replace('/<!--.*?-->/s', '', $value);
+            $value = preg_replace('/[*_#>`]+/', '', $value);
+            return mb_strtolower(trim(preg_replace('/\s+/', ' ', $value)));
+        };
+        $words = $plain(rtrim($words, '….'));
+        $start = mb_substr($plain($text), 0, mb_strlen($words) + 500);
+        return $words !== '' && str_contains($start, $words);
+    }
+
     // A page inside a module (such as an item from an LMS course): its title as its heading, then its text. It's
     // named after its module, beside the other pages, so its images and links work as on the module's page.
     private function writeModulePage(Page $page, Page $module, string $modulesPath): void
@@ -229,10 +245,22 @@ class CourseDocsifyWriter
         $this->writeFile($file, implode("\n", $lines));
     }
 
-    // A page inside a module's Docsify file: 'module-02' and 'readings' → 'module-02-readings.md'
+    // A page inside a module's Docsify file: 'module-', the module's and page's numbers (from their Grav folders),
+    // then the page's name, so names stay short however long the module's title is.
+    // Example: '02.module-2-considering-…' and '01.considering-the-online-context'
+    // → 'module-02-01-considering-the-online-context.md'
     private static function modulePageFile(Page $module, Page $page): string
     {
-        return $module->slug() . '-' . $page->slug() . '.md';
+        return 'module-' . self::folderNumber($module) . '-' . self::folderNumber($page) . '-' . $page->slug() . '.md';
+    }
+
+    // A page's number from its Grav folder ('02.module-2' → '02'), or '00' when its folder has none
+    private static function folderNumber(Page $page): string
+    {
+        if (preg_match('/^(\d+)\./', basename($page->folder), $found) === 1) {
+            return $found[1];
+        }
+        return '00';
     }
 
     // '## **What is usability?**' at the start of the text, when the description is 'What is usability?', is kept as
@@ -288,7 +316,8 @@ class CourseDocsifyWriter
         $sections = [];
         // the links in the home page's own text, kept apart from each part's links
         $homeLinks = [];
-        foreach (explode("\n", $home->body) as $line) {
+        // (the home page's own images go in images/ too, as other pages' do)
+        foreach (explode("\n", $this->withImagesFolder($home)) as $line) {
             if (preg_match('/^\[plugin:page-inject\]\(\.\.\/[^)]*\/([^\/)]+)\)\s*$/', trim($line), $found) === 1 && isset($parts[$found[1]])) {
                 $sections[] = $this->ownHomeText($ownText);
                 $ownText = [];
