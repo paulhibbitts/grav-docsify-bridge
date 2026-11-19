@@ -328,7 +328,7 @@ class CourseDocsifyWriter
             if (trim($modulesPage->body) !== '') {
                 $extra['body'] = trim($modulesPage->body);
             }
-            $lines = array_merge([$this->note($modulesPage, $extra), ''], Helpers::generated(array_merge($banner, $head)));
+            $lines = array_merge([$this->note($modulesPage, $extra), ''], Helpers::generated(array_merge($banner, $head, self::licenseLine($site))));
             $this->writeFile('home.md', implode("\n", $lines));
             return;
         }
@@ -375,7 +375,32 @@ class CourseDocsifyWriter
         if (count($cards) > 0) {
             $sections[] = "\n\n" . implode("\n", Helpers::generated(array_merge(['<div class="card-list-rows">', ''], $cards, ['</div>'])));
         }
+        $license = self::licenseLine($site);
+        if (count($license) > 0) {
+            $sections[] = "\n\n" . implode("\n", Helpers::generated(array_slice($license, 1)));
+        }
         $this->writeFile('home.md', implode("\n", $head) . implode("\n", $sections));
+    }
+
+    // The course's licence, as Open Course Space shows it when Show OER Attribution is on: its attribution text, or
+    // 'Licensed under' its licence (linked when it has an address). Starts with an empty line; none without a licence.
+    private static function licenseLine(Site $site): array
+    {
+        $course = $site->coursePage;
+        if ($course === null || ($course->meta['show_oer_attribution'] ?? false) !== true) {
+            return [];
+        }
+        if ($course->setting('attribution_text') !== '') {
+            return ['', $course->setting('attribution_text')];
+        }
+        $license = $course->setting('license');
+        if ($license === '') {
+            return [];
+        }
+        if ($course->setting('license_url') !== '') {
+            $license = '[' . $license . '](' . $course->setting('license_url') . ')';
+        }
+        return ['', 'Licensed under ' . $license . '.'];
     }
 
     // The home page's own pages (not the parts it shows): a course's welcome pages, for example
