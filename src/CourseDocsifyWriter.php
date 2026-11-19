@@ -150,7 +150,32 @@ class CourseDocsifyWriter
         }
         $body = $this->convert($body, $gravPath, $file);
         $lines = array_merge([$this->note($module), ''], Helpers::generated($head), ['', trim($body)]);
+        // the module's pages, after its text, as Grav lists them: a card each, with its description
+        $cards = $this->modulePageCards($module);
+        if (count($cards) > 0) {
+            $lines = array_merge($lines, ['', ''], Helpers::generated(array_merge(['<div class="card-list-rows">', ''], $cards, ['</div>'])));
+        }
         $this->writeFile($file, implode("\n", $lines));
+    }
+
+    // A card for each page inside a module that's shown (not hidden or unpublished): its title, and its description
+    // if it has one
+    private function modulePageCards(Page $module): array
+    {
+        $cards = [];
+        foreach ($module->children as $page) {
+            if (($page->meta['visible'] ?? true) === false || ($page->meta['published'] ?? true) === false) {
+                continue;
+            }
+            $pageFile = basename(self::modulePageFile($module, $page), '.md');
+            $cards = array_merge($cards, ['<div class="card">', '', Helpers::cardTitle($this->top . $pageFile, $page->title(), $this->top === ''), '']);
+            if ($page->setting('description') !== '') {
+                $cards = array_merge($cards, [$page->setting('description'), '']);
+            }
+            $cards[] = '</div>';
+            $cards[] = '';
+        }
+        return $cards;
     }
 
     // A Modules page whose modules have a description or card image (Image setting) to show, as Grav's Modules page does
