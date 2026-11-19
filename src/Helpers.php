@@ -123,13 +123,14 @@ class Helpers
     }
 
     // A section's or module's overview link in a sidebar: "Chapter 2 Overview" when its title starts with a number like
-    // that, or else "Overview" (Previous/Next show this text, so the number says which overview it is)
-    public static function overviewLabel(string $title): string
+    // that, or else "Overview", as the Starter Kits' guides have it (Previous/Next show this text, so the number says
+    // which overview it is). $named: "Additional resources Overview" instead, for a course's modules
+    public static function overviewLabel(string $title, bool $named = false): string
     {
         if (preg_match('/^((?:Chapter|Module|Part|Unit|Week|Section)\s+\d+)/i', $title, $found) === 1) {
             return $found[1] . ' Overview';
         }
-        return 'Overview';
+        return $named ? $title . ' Overview' : 'Overview';
     }
 
     // Reads a hidden note back. Returns null when the text doesn't start with one, otherwise

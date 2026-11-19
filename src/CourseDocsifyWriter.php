@@ -616,7 +616,7 @@ class CourseDocsifyWriter
             }
             // a module with pages inside it is a group: its own page first, then its pages, as in a guide's sidebar
             $lines[] = '- ' . $module->title();
-            $lines[] = '  - [' . Helpers::overviewLabel($module->title()) . '](' . $module->slug() . '.md)';
+            $lines[] = '  - [' . Helpers::overviewLabel($module->title(), true) . '](' . $module->slug() . '.md)';
             foreach ($module->children as $page) {
                 if (($page->meta['visible'] ?? true) !== false && ($page->meta['published'] ?? true) !== false) {
                     $lines[] = '  - [' . $page->title() . '](' . self::modulePageFile($module, $page) . ')';
