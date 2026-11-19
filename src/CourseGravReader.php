@@ -74,7 +74,28 @@ class CourseGravReader extends GravReader
             $folder = $modulesFolder . '/' . $name;
             $file = $this->markdownFile($pagesDir . '/' . $folder);
             if ($file !== '' && (Helpers::isNumbered($name) || $listFile === 'blog.md')) {
-                $modulesPage->children[] = $this->readPage($pagesDir, $folder, $file, 'module');
+                $module = $this->readPage($pagesDir, $folder, $file, 'module');
+                // the pages inside a module (as the Common Cartridge Converter writes a module's items), in order
+                foreach ($this->subfolders($pagesDir . '/' . $folder) as $pageName) {
+                    $pageFolder = $folder . '/' . $pageName;
+                    $pageFile = $this->markdownFile($pagesDir . '/' . $pageFolder);
+                    if ($pageFile === '') {
+                        continue;
+                    }
+                    $page = $this->readPage($pagesDir, $pageFolder, $pageFile, 'module-page');
+                    // only numbered course pages, one level inside the module, are carried across: anything else is noted
+                    if ($pageFile !== 'course-page.md' || !Helpers::isNumbered($pageName)) {
+                        $this->notes[] = $page->title() . ' (' . $pageFolder . ') isn\'t a page of its module, so it wasn\'t converted';
+                        continue;
+                    }
+                    foreach ($this->subfolders($pagesDir . '/' . $pageFolder) as $deeper) {
+                        if ($this->markdownFile($pagesDir . '/' . $pageFolder . '/' . $deeper) !== '') {
+                            $this->notes[] = $pageFolder . '/' . $deeper . ' is a page inside a page of a module, so it wasn\'t converted';
+                        }
+                    }
+                    $module->children[] = $page;
+                }
+                $modulesPage->children[] = $module;
             }
         }
         return $modulesPage;
@@ -87,9 +108,16 @@ class CourseGravReader extends GravReader
         $home = $this->readPage($pagesDir, $homeFolder, $file, 'home');
         foreach ($this->subfolders($pagesDir . '/' . $homeFolder) as $name) {
             $partFile = $this->markdownFile($pagesDir . '/' . $homeFolder . '/' . $name);
-            if ($partFile !== '') {
-                $home->children[] = $this->readPage($pagesDir, $homeFolder . '/' . $name, $partFile, 'home-part');
+            if ($partFile === '') {
+                continue;
             }
+            // a part's folder starts with _ ('01._reminders'); any other is a page of its own that the home page
+            // shows as a card ('02.syllabus', as the Common Cartridge Converter writes a course's welcome pages)
+            // (a page the home page shows with [plugin:page-inject] is a part too, whatever its folder's name)
+            $slug = Helpers::slugFromFolder($name);
+            $injected = str_contains($home->body, '/' . $slug . ')');
+            $kind = (str_starts_with($slug, '_') || $injected) ? 'home-part' : 'home-page';
+            $home->children[] = $this->readPage($pagesDir, $homeFolder . '/' . $name, $partFile, $kind);
         }
         return $home;
     }

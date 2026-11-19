@@ -122,6 +122,16 @@ class Helpers
         return true;
     }
 
+    // A section's or module's overview link in a sidebar: "Chapter 2 Overview" when its title starts with a number like
+    // that, or else "Overview" (Previous/Next show this text, so the number says which overview it is)
+    public static function overviewLabel(string $title): string
+    {
+        if (preg_match('/^((?:Chapter|Module|Part|Unit|Week|Section)\s+\d+)/i', $title, $found) === 1) {
+            return $found[1] . ' Overview';
+        }
+        return 'Overview';
+    }
+
     // Reads a hidden note back. Returns null when the text doesn't start with one, otherwise
     // ['where' => what the first line holds, 'yaml' => the front matter, 'rest' => the rest of the page]
     public static function readGravNote(string $text): ?array
@@ -167,11 +177,7 @@ class Helpers
             $card[] = '[![' . $alt . '](' . $image . ' ":no-zoom")](' . $page . '.md)';
             $card[] = '';
         }
-        if ($markdownTitle) {
-            $card[] = '## [' . $title . '](' . $page . '.md)' . $badge;
-        } else {
-            $card[] = '<h2><a href="#/' . $page . '">' . $title . '</a>' . $badge . '</h2>';
-        }
+        $card[] = self::cardTitle($page, $title, $markdownTitle, $badge);
         $card[] = '';
         foreach ($text as $line) {
             $card[] = $line;
@@ -180,6 +186,18 @@ class Helpers
         $card[] = '</div>';
         $card[] = '';
         return $card;
+    }
+
+    // A card's title linked to its page. On a page at the site's top, a Markdown link to the .md file, which works in
+    // Docsify and on GitHub ({docsify-ignore} keeps it out of the sidebar); on a page in a folder, Docsify's own link,
+    // as GitHub would read a path from the top as starting in that folder.
+    // Example: ('cpt363-basic/home', 'CPT363-1', true) → ## [CPT363-1](cpt363-basic/home.md) <!-- {docsify-ignore} -->
+    public static function cardTitle(string $page, string $title, bool $atTop, string $badge = ''): string
+    {
+        if ($atTop) {
+            return '## [' . $title . '](' . $page . '.md)' . $badge . ' <!-- {docsify-ignore} -->';
+        }
+        return '<h2><a href="#/' . $page . '">' . $title . '</a>' . $badge . '</h2>';
     }
 
     // Marks text the converter adds for Docsify (titles, cards, back links …), so it can be told apart from

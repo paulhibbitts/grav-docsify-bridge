@@ -7,6 +7,9 @@ namespace OPG;
 // to the same Grav pages (see CourseDocsifyReader).
 class CourseDocsifyWriter
 {
+    // the first line of the Modules page the converter makes, so the way back knows to skip it
+    public const MODULES_PAGE_MARKER = '<!-- grav:modules-page -->';
+
     // Links that only work on the Grav site, and anything else worth checking (for conversion-notes.txt)
     public array $warnings = [];
     // the header image's address in the course's images/ ('' when it has none), for its card on the Courses page
@@ -39,27 +42,47 @@ class CourseDocsifyWriter
         $modulesPage = $site->modulesPage;
         $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
 
-        // every page's address first, so links between them are converted. The Modules page has no page of its own
-        // (the sidebar lists the modules), so links to it go to the course home.
+        // every page's address first, so links between them are converted. The Modules page gets a page of its own
+        // only when it has module cards worth showing (see hasModuleCards()); otherwise links to it go to the course home.
         $modulesPath = $this->course . '/' . $modulesPage->slug();
-        $this->addresses = [$this->course => 'home.md', $this->course . '/home' => 'home.md', $modulesPath => 'home.md'];
+        $modulesFile = self::hasModuleCards($modulesPage) ? $modulesPage->slug() . '.md' : 'home.md';
+        $this->addresses = [$this->course => 'home.md', $this->course . '/home' => 'home.md', $modulesPath => $modulesFile];
         foreach ($modulesPage->children as $module) {
             $this->addresses[$modulesPath . '/' . $module->slug()] = $module->slug() . '.md';
+            foreach ($module->children as $page) {
+                $this->addresses[$modulesPath . '/' . $module->slug() . '/' . $page->slug()] = self::modulePageFile($module, $page);
+            }
         }
         foreach ($site->coursePages as $page) {
             $this->addresses[$this->course . '/' . $page->slug()] = $page->slug() . '.md';
         }
+        foreach (self::homePages($site) as $page) {
+            $this->addresses[$this->course . '/home/' . $page->slug()] = 'home-' . $page->slug() . '.md';
+        }
 
         foreach ($modulesPage->children as $module) {
             $this->writeModule($module, $modulesPath);
+            foreach ($module->children as $page) {
+                $this->writeModulePage($page, $module, $modulesPath);
+            }
         }
         $this->writeHome($site, $modulesPage);
+        if ($modulesFile !== 'home.md') {
+            $this->writeModulesPage($modulesPage, $modulesFile);
+        }
+        foreach (self::homePages($site) as $page) {
+            $this->writeHomePage($page);
+        }
 
         // the course's name first, as the site's title (Docsify-This shows it on phones, where the sidebar starts closed)
         $navbar = ['- [' . $site->coursePage->title() . '](home.md ":class=site-title")'];
         if ($this->top !== '') {
             // in a site of several courses, a Home link to the course's home page (the site title shows only on phones)
             $navbar[] = '- [Home](home.md)';
+        }
+        // the Modules page first (it comes before the menu pages in Grav's order), then the menu pages
+        if ($modulesFile !== 'home.md') {
+            $navbar[] = '- [' . $modulesPage->title() . '](' . $modulesFile . ')';
         }
         foreach ($site->coursePages as $page) {
             $this->writeMenuPage($page);
@@ -126,6 +149,90 @@ class CourseDocsifyWriter
         $body = $this->convert($body, $gravPath, $file);
         $lines = array_merge([$this->note($module), ''], Helpers::generated($head), ['', trim($body)]);
         $this->writeFile($file, implode("\n", $lines));
+    }
+
+    // A Modules page whose modules have a description or card image (Image setting) to show, as Grav's Modules page does
+    // (a Weekly Units page, or modules with only a title, would add little to the sidebar's list)
+    private static function hasModuleCards(Page $modulesPage): bool
+    {
+        if ($modulesPage->file !== 'module.md') {
+            return false;
+        }
+        foreach (self::listedModules($modulesPage) as $module) {
+            if ($module->setting('description') !== '' || $module->setting('image') !== '') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // The modules that are shown (not hidden or unpublished)
+    private static function listedModules(Page $modulesPage): array
+    {
+        return array_values(array_filter($modulesPage->children, function ($module) {
+            return ($module->meta['visible'] ?? true) !== false && ($module->meta['published'] ?? true) !== false;
+        }));
+    }
+
+    // The Modules page, as Grav shows it: its title and description, then a card for each module, with its Image
+    // setting's picture (if any), title and description, as many in a row as the page's Cards Per Row (2 if not set).
+    // It's all made by the converter: the page's settings are kept in the sidebar's note, so the marker at the top
+    // tells the way back to skip this page.
+    private function writeModulesPage(Page $modulesPage, string $file): void
+    {
+        $head = ['# ' . $modulesPage->title()];
+        if ($modulesPage->setting('description') !== '') {
+            $head = array_merge($head, ['', $modulesPage->setting('description')]);
+        }
+        // which parts any card has: a card without one gets an empty space for it, so the cards line up in rows
+        $modules = self::listedModules($modulesPage);
+        $images = [];
+        $withImages = false;
+        $withDescriptions = false;
+        foreach ($modules as $module) {
+            $images[$module->slug()] = $module->setting('image') !== '' ? $this->copyImage($module, $module->setting('image')) : '';
+            $withImages = $withImages || $images[$module->slug()] !== '';
+            $withDescriptions = $withDescriptions || $module->setting('description') !== '';
+        }
+        $cards = [];
+        foreach ($modules as $module) {
+            $card = ['<div class="card">', ''];
+            $image = $images[$module->slug()];
+            if ($image !== '') {
+                $card = array_merge($card, ['[![' . $module->title() . '](' . $image . ' ":no-zoom")](' . $module->slug() . '.md)', '']);
+            } elseif ($withImages) {
+                $card = array_merge($card, ['<p></p>', '']);
+            }
+            $card = array_merge($card, [Helpers::cardTitle($this->top . $module->slug(), $module->title(), $this->top === ''), '']);
+            if ($module->setting('description') !== '') {
+                $card = array_merge($card, [$module->setting('description'), '']);
+            } elseif ($withDescriptions) {
+                $card = array_merge($card, ['<p></p>', '']);
+            }
+            $cards = array_merge($cards, $card, ['</div>', '']);
+        }
+        $listClasses = [1 => 'card-list-rows', 2 => 'card-list', 3 => 'card-list-sections'];
+        $listClass = $listClasses[(int)($modulesPage->meta['cards_per_row'] ?? 2)] ?? 'card-list';
+        $lines = array_merge([self::MODULES_PAGE_MARKER, ''], Helpers::generated(array_merge($head, ['', '<div class="' . $listClass . '">', ''], $cards, ['</div>'])));
+        $this->writeFile($file, implode("\n", $lines));
+    }
+
+    // A page inside a module (such as an item from an LMS course): its title as its heading, then its text. It's
+    // named after its module, beside the other pages, so its images and links work as on the module's page.
+    private function writeModulePage(Page $page, Page $module, string $modulesPath): void
+    {
+        $file = self::modulePageFile($module, $page);
+        $gravPath = $modulesPath . '/' . $module->slug() . '/' . $page->slug();
+        $head = ['# ' . $page->title()];
+        $body = $this->convert($this->withImagesFolder($page), $gravPath, $file);
+        $lines = array_merge([$this->note($page), ''], Helpers::generated($head), ['', trim($body)]);
+        $this->writeFile($file, implode("\n", $lines));
+    }
+
+    // A page inside a module's Docsify file: 'module-02' and 'readings' → 'module-02-readings.md'
+    private static function modulePageFile(Page $module, Page $page): string
+    {
+        return $module->slug() . '-' . $page->slug() . '.md';
     }
 
     // '## **What is usability?**' at the start of the text, when the description is 'What is usability?', is kept as
@@ -201,7 +308,38 @@ class CourseDocsifyWriter
             $title = $site->coursePage->title();
         }
         $head = array_merge([$this->note($home, $extra), ''], Helpers::generated(array_merge($banner, ['# ' . $title])), ['']);
+        // the home page's own pages, as cards after its text, as Grav shows them
+        $cards = [];
+        foreach (self::homePages($site) as $page) {
+            $cards = array_merge($cards, ['<div class="card">', '', Helpers::cardTitle($this->top . 'home-' . $page->slug(), $page->title(), $this->top === ''), '']);
+            if ($page->setting('description') !== '') {
+                $cards = array_merge($cards, [$page->setting('description'), '']);
+            }
+            $cards[] = '</div>';
+            $cards[] = '';
+        }
+        if (count($cards) > 0) {
+            $sections[] = "\n\n" . implode("\n", Helpers::generated(array_merge(['<div class="card-list-rows">', ''], $cards, ['</div>'])));
+        }
         $this->writeFile('home.md', implode("\n", $head) . implode("\n", $sections));
+    }
+
+    // The home page's own pages (not the parts it shows): a course's welcome pages, for example
+    private static function homePages(Site $site): array
+    {
+        if ($site->courseHome === null) {
+            return [];
+        }
+        return array_values(array_filter($site->courseHome->children, fn($page) => $page->kind === 'home-page'));
+    }
+
+    // One of the home page's own pages: its title as its heading, then its text
+    private function writeHomePage(Page $page): void
+    {
+        $file = 'home-' . $page->slug() . '.md';
+        $body = $this->convert($this->withImagesFolder($page), $this->course . '/home/' . $page->slug(), $file);
+        $lines = array_merge([$this->note($page), ''], Helpers::generated(['# ' . $page->title()]), ['', trim($body)]);
+        $this->writeFile($file, implode("\n", $lines));
     }
 
     // The course's settings (course.md), header image (headerimage/) and footer (footer/), exactly as written, for the
@@ -393,7 +531,18 @@ class CourseDocsifyWriter
             if (($module->meta['visible'] ?? true) === false || ($module->meta['published'] ?? true) === false) {
                 continue;
             }
-            $lines[] = '- [' . $module->title() . '](' . $module->slug() . '.md)';
+            if (count($module->children) === 0) {
+                $lines[] = '- [' . $module->title() . '](' . $module->slug() . '.md)';
+                continue;
+            }
+            // a module with pages inside it is a group: its own page first, then its pages, as in a guide's sidebar
+            $lines[] = '- ' . $module->title();
+            $lines[] = '  - [' . Helpers::overviewLabel($module->title()) . '](' . $module->slug() . '.md)';
+            foreach ($module->children as $page) {
+                if (($page->meta['visible'] ?? true) !== false && ($page->meta['published'] ?? true) !== false) {
+                    $lines[] = '  - [' . $page->title() . '](' . self::modulePageFile($module, $page) . ')';
+                }
+            }
         }
         $this->writeFile('_sidebar.md', implode("\n", array_merge($lines, $groups)));
     }

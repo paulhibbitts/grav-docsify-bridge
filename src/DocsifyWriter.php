@@ -394,7 +394,7 @@ class DocsifyWriter
         } elseif ($parts['label']) {
             $card = array_merge($card, ['<p></p>', '']);
         }
-        $card[] = '<h2><a href="#/' . $link . '">' . $section->title() . '</a></h2>';
+        $card[] = Helpers::cardTitle($link, $section->title(), $this->single);
         $card[] = '';
         $description = $section->setting('description');
         if ($description !== '') {
@@ -454,23 +454,13 @@ class DocsifyWriter
             $lines[] = '- ' . $section->title();
             // (a section that redirects to one of its pages has no Overview: its pages are listed on their own)
             if ($item['start'] === null) {
-                $lines[] = '  - [' . self::overviewLabel($section) . '](' . $sectionLink . ')';
+                $lines[] = '  - [' . Helpers::overviewLabel($section->title()) . '](' . $sectionLink . ')';
             }
             foreach ($section->children as $page) {
                 $lines[] = '  - [' . $page->title() . '](' . $top . $section->slug() . '/' . $page->slug() . '.md)';
             }
         }
         $this->writeFile($top . '_sidebar.md', implode("\n", $lines));
-    }
-
-    // A section's overview link: "Chapter 2 Overview" when its title starts with a number like that, or else
-    // "Overview" (Previous/Next show this text, so the number says which overview it is)
-    private static function overviewLabel(Page $section): string
-    {
-        if (preg_match('/^((?:Chapter|Module|Part|Unit|Week|Section)\s+\d+)/i', $section->title(), $found) === 1) {
-            return $found[1] . ' Overview';
-        }
-        return 'Overview';
     }
 
     // A guide's card on the Guides page: cover image, title (with any badge), subtitle, authors and edition
@@ -491,7 +481,7 @@ class DocsifyWriter
             $badge = ' <span class="badge">' . $guide->setting('badge_label') . '</span>';
         }
         $text = [$guide->setting('subtitle'), '<small>' . $guide->setting('authors') . '<br>' . $guide->setting('edition') . $this->updated($guide) . '</small>'];
-        return Helpers::card($guideSlug . '/README', $guide->title(), $image, $alt, $text, $badge);
+        return Helpers::card($guideSlug . '/README', $guide->title(), $image, $alt, $text, $badge, true);
     }
 
     // The Guides page (Grav's Guides List page), with a card for each guide

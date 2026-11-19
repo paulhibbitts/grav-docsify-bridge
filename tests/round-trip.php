@@ -209,6 +209,9 @@ function sameText(string $original, string $back): array
 function visibleText(string $path): array
 {
     $text = preg_replace('/<!-- \/?grav.*?-->/s', '', str_replace("\r\n", "\n", file_get_contents($path)));
+    // a card title as a Markdown link (which works on GitHub too) reads the same as Docsify's own link:
+    // ## [Title](page.md) <!-- {docsify-ignore} --> → <h2><a href="#/page">Title</a></h2>
+    $text = preg_replace('/^## \[([^\]]+)\]\(([^)\s]+)\.md\) <!-- \{docsify-ignore\} -->$/m', '<h2><a href="#/$2">$1</a></h2>', $text);
     $lines = [];
     foreach (explode("\n", $text) as $line) {
         if (trim($line) !== '') {

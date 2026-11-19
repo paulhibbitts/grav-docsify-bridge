@@ -738,6 +738,10 @@ class DocsifyFirstReader
                 } elseif (preg_match('/<h2><a href="#\/([^"]+)">(.*?)<\/a>/', $line, $found) === 1) {
                     $card['file'] = $this->docsifyFile($found[1]);
                     $card['title'] = strip_tags($found[2]);
+                } elseif (preg_match('/^## \[(.+?)\]\(([^)\s]+)\)/', $line, $found) === 1) {
+                    // the title as a Markdown link (which works on GitHub too): ## [Title](section/README.md)
+                    $card['file'] = $this->docsifyFile(preg_replace('/\.md$/', '', $found[2]));
+                    $card['title'] = strip_tags($found[1]);
                 } elseif (preg_match('/^(?:<small>)?(.+?) (\d+)(?: of \d+)?(?:<\/small>)?$/', $line, $found) === 1 && !isset($card['file'])) {
                     // the label line comes before the title
                     $card['label'] = $found[1];
@@ -808,6 +812,12 @@ class DocsifyFirstReader
                     $card['cover_source'] = $this->dir . '/' . $found[2];
                 } elseif (preg_match('/<h2><a href="#\/([^\/"]+)\/README">(.*?)<\/a>(.*)<\/h2>/', $line, $found) === 1) {
                     $card['folder'] = $found[1];
+                    if (preg_match('/<span class="badge">(.*?)<\/span>/', $found[3], $badge) === 1) {
+                        $card['badge_label'] = $badge[1];
+                    }
+                } elseif (preg_match('/^## \[(.+?)\]\(([^\/)\s]+)\/README(?:\.md)?\)(.*)$/', $line, $found) === 1) {
+                    // the title as a Markdown link (which works on GitHub too): ## [Guide](guide/README.md)
+                    $card['folder'] = $found[2];
                     if (preg_match('/<span class="badge">(.*?)<\/span>/', $found[3], $badge) === 1) {
                         $card['badge_label'] = $badge[1];
                     }

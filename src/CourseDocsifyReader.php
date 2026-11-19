@@ -71,12 +71,27 @@ class CourseDocsifyReader
             $this->siteUrl = (string)$homeNote['site'];
         }
         $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
+        // the home page's folder ('01.home'): a page in a folder inside it is one of the home page's own pages
+        $homeFolder = isset($homeNote['file']) ? dirname($homeNote['file']) : '';
         // every page's Grav address first, for the links between them
         foreach ($notedPages as $file => $note) {
             $gravFile = $note['where']['file'];
             $folder = dirname($gravFile);
+            if (basename($gravFile) === 'module.md') {
+                // the Modules page (its note is in the sidebar), which may have a page the converter made: modules.md
+                $modulesSlug = Helpers::slugFromFolder($folder);
+                $this->addresses[$modulesSlug . '.md'] = $this->course . '/' . $modulesSlug;
+            }
             if ($file === 'home.md') {
                 $this->addresses[$file] = $this->course . '/home';
+            } elseif ($homeFolder !== '' && dirname($folder) === $homeFolder) {
+                // one of the home page's own pages: '01.home/02.syllabus/course-page.md' → '/cpt363-basic/home/syllabus'
+                $this->addresses[$file] = $this->course . '/home/' . Helpers::slugFromFolder(basename($folder));
+            } elseif (self::isModulePageFile($gravFile)) {
+                // a page inside a module: '02.modules/02.module-01/01.readings/course-page.md'
+                // → '/cpt363-basic/modules/module-01/readings'
+                $parts = explode('/', $folder);
+                $this->addresses[$file] = $this->course . '/' . implode('/', array_map([Helpers::class, 'slugFromFolder'], $parts));
             } elseif (self::isModuleFile($gravFile)) {
                 // a module: '02.modules/02.module-01/course-page.md' → '/cpt363-basic/modules/module-01'
                 $moduleSlug = Helpers::slugFromFolder(basename($folder));
@@ -89,6 +104,8 @@ class CourseDocsifyReader
         }
 
         $modules = [];
+        $modulePages = []; // the pages inside modules: the module's Grav file => [Grav file => page]
+        $homePages = [];   // the home page's own pages: Grav file => page
         foreach ($notedPages as $file => $note) {
             $gravFile = $note['where']['file'];
             if (in_array(basename($gravFile), ['module.md', 'blog.md'], true)) {
@@ -99,6 +116,18 @@ class CourseDocsifyReader
             }
             if ($file === 'home.md') {
                 $site->courseHome = $this->readNotedHome($note, $site);
+                continue;
+            }
+            if ($homeFolder !== '' && dirname(dirname($gravFile)) === $homeFolder) {
+                $page = $this->notedPage('home-page', $note, $this->authorText($note['rest'], $note));
+                $this->addNotedImages($page, $note);
+                $homePages[$gravFile] = $page;
+                continue;
+            }
+            if (self::isModulePageFile($gravFile)) {
+                $page = $this->notedPage('module-page', $note, $this->authorText($note['rest'], $note));
+                $this->addNotedImages($page, $note);
+                $modulePages[dirname(dirname($gravFile)) . '/course-page.md'][$gravFile] = $page;
                 continue;
             }
             if (self::isModuleFile($gravFile)) {
@@ -133,7 +162,17 @@ class CourseDocsifyReader
         if ($site->modulesPage === null) {
             $site->modulesPage = $this->newPage('modules', '02.modules', 'module.md', ['title' => 'Modules']);
         }
+        if ($site->courseHome !== null && count($homePages) > 0) {
+            ksort($homePages, SORT_NATURAL);
+            $site->courseHome->children = array_merge($site->courseHome->children, array_values($homePages));
+        }
         ksort($modules, SORT_NATURAL);
+        foreach ($modules as $gravFile => $module) {
+            if (isset($modulePages[$gravFile])) {
+                ksort($modulePages[$gravFile], SORT_NATURAL);
+                $module->children = array_values($modulePages[$gravFile]);
+            }
+        }
         $site->modulesPage->children = array_values($modules);
         // menu pages in Grav's order (05.schedule, 06.topics …)
         usort($site->coursePages, function ($a, $b) {
@@ -148,6 +187,12 @@ class CourseDocsifyReader
     private static function isModuleFile(string $gravFile): bool
     {
         return in_array(basename($gravFile), ['course-page.md', 'item.md'], true) && substr_count($gravFile, '/') === 2;
+    }
+
+    // A page inside a module is in a folder inside the module's: '02.modules/02.module-01/01.readings/course-page.md'
+    private static function isModulePageFile(string $gravFile): bool
+    {
+        return basename($gravFile) === 'course-page.md' && substr_count($gravFile, '/') === 3;
     }
 
     // The course's folder, settings (course.md) and header image, from the home page's note. Without them (a course
@@ -811,20 +856,40 @@ class CourseDocsifyReader
                 // a group's heading: - **LMS Links**
                 $sidebar['groups'][] = ['heading' => $found[1], 'links' => []];
                 $group = count($sidebar['groups']) - 1;
+            } elseif ($group !== null && preg_match('/^\s+[-*] \[([^\]]+)\]\(([^)\s]+)\)\s*$/', $line, $link) === 1
+                && $this->isModuleGroup($sidebar['groups'][$group], $link[1], $link[2])) {
+                // a module with pages inside it: the group's heading is the module's title, and its first link
+                // (Overview) is the module's own page
+                if (!isset($sidebar['groups'][$group]['module'])) {
+                    $sidebar['groups'][$group]['module'] = true;
+                    $sidebar['modules'][$this->siteFile($link[2])] = $sidebar['groups'][$group]['heading'];
+                }
             } elseif ($group !== null && preg_match('/^\s+[-*] (\[.+\]\([^)]+\))\s*$/', $line, $found) === 1) {
                 // a link in the group, indented:   - [Calendar](https://…)
                 $sidebar['groups'][$group]['links'][] = $found[1];
             }
         }
-        // a group without any links isn't kept
+        // a group without any links isn't kept, nor a module's group (read above)
         $groupsWithLinks = [];
         foreach ($sidebar['groups'] as $group) {
-            if (count($group['links']) > 0) {
+            if (count($group['links']) > 0 && !isset($group['module'])) {
                 $groupsWithLinks[] = $group;
             }
         }
         $sidebar['groups'] = $groupsWithLinks;
         return $sidebar;
+    }
+
+    // A sidebar group that's a module with pages inside it, as the converter writes one: its first link goes to a page
+    // of the course and is labelled "Overview" (or "Module 2 Overview"); the links after it are the module's pages
+    private function isModuleGroup(array $group, string $label, string $target): bool
+    {
+        if (isset($group['module'])) {
+            return true; // a later link in a module's group
+        }
+        $isFirstLink = count($group['links']) === 0;
+        $isOverview = preg_match('/(^| )Overview$/', $label) === 1;
+        return $isFirstLink && $isOverview && $this->siteFile($target) !== '';
     }
 
     // _navbar.md: a link to a page of the site => its label (links to other sites are noted)
@@ -874,6 +939,10 @@ class CourseDocsifyReader
         foreach (glob($this->dir . '/*.md') as $path) {
             $file = basename($path);
             if (in_array($file, $converted, true) || in_array($file, $special, true)) {
+                continue;
+            }
+            // the Modules page the converter makes (its settings are in the sidebar's note)
+            if (str_starts_with($this->readFile($file), CourseDocsifyWriter::MODULES_PAGE_MARKER)) {
                 continue;
             }
             if (in_array($file, ['_coverpage.md', 'coverpage.md'], true)) {

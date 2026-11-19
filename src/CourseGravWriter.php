@@ -20,7 +20,11 @@ class CourseGravWriter
         }
         if ($site->modulesPage !== null) {
             $pages[] = $site->modulesPage;
-            $pages = array_merge($pages, $site->modulesPage->children);
+            foreach ($site->modulesPage->children as $module) {
+                // each module, then the pages inside it
+                $pages[] = $module;
+                $pages = array_merge($pages, $module->children);
+            }
         }
         $pages = array_merge($pages, $site->coursePages);
         if ($site->courseSidebar !== null) {
