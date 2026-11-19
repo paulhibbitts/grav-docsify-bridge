@@ -14,11 +14,19 @@ class CourseGravReader extends GravReader
         $this->notes = [];
         $site->courseFolder = basename($pagesDir);
         $site->coursePage = $this->readPage($pagesDir, '', 'course.md', 'course');
-        // a course without a Modules page is organised by weekly units: its first blog page
+        // a course without a Modules page is organised by weekly units: its first blog page – or, as the Common
+        // Cartridge Converter writes a course of one module, a plain Modules page (30.modules/course-page.md) whose
+        // pages are the module's items: each of them is then a module
         $unitsFolder = '';
         if (count(glob($pagesDir . '/*/module.md')) === 0) {
             foreach ($this->subfolders($pagesDir) as $name) {
                 if ($unitsFolder === '' && Helpers::isNumbered($name) && $this->markdownFile($pagesDir . '/' . $name) === 'blog.md') {
+                    $unitsFolder = $name;
+                }
+            }
+            foreach ($this->subfolders($pagesDir) as $name) {
+                $isModulesFolder = Helpers::isNumbered($name) && Helpers::slugFromFolder($name) === 'modules';
+                if ($unitsFolder === '' && $isModulesFolder && $this->markdownFile($pagesDir . '/' . $name) === 'course-page.md') {
                     $unitsFolder = $name;
                 }
             }

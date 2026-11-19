@@ -77,7 +77,7 @@ class CourseDocsifyReader
         foreach ($notedPages as $file => $note) {
             $gravFile = $note['where']['file'];
             $folder = dirname($gravFile);
-            if (basename($gravFile) === 'module.md') {
+            if (self::isModulesListFile($gravFile)) {
                 // the Modules page (its note is in the sidebar), which may have a page the converter made: modules.md
                 $modulesSlug = Helpers::slugFromFolder($folder);
                 $this->addresses[$modulesSlug . '.md'] = $this->course . '/' . $modulesSlug;
@@ -108,7 +108,7 @@ class CourseDocsifyReader
         $homePages = [];   // the home page's own pages: Grav file => page
         foreach ($notedPages as $file => $note) {
             $gravFile = $note['where']['file'];
-            if (in_array(basename($gravFile), ['module.md', 'blog.md'], true)) {
+            if (self::isModulesListFile($gravFile)) {
                 // the Modules (or Weekly Units) page's note: in _sidebar.md, or in home.md when the course has no home page
                 $site->modulesPage = $this->notedPage('modules', $note, '');
                 $site->modulesPage->body = $note['where']['body'] ?? '';
@@ -180,6 +180,18 @@ class CourseDocsifyReader
         });
         $this->noteOtherPages(array_keys($notedPages));
         return $site;
+    }
+
+    // The Modules page's file: '02.modules/module.md', a Weekly Units page ('02.weekly-units/blog.md'), or the plain
+    // Modules page the Common Cartridge Converter writes for a course of one module ('30.modules/course-page.md')
+    private static function isModulesListFile(string $gravFile): bool
+    {
+        if (in_array(basename($gravFile), ['module.md', 'blog.md'], true)) {
+            return true;
+        }
+        $folder = dirname($gravFile);
+        return basename($gravFile) === 'course-page.md' && !str_contains($folder, '/') && Helpers::isNumbered($folder)
+            && Helpers::slugFromFolder($folder) === 'modules';
     }
 
     // A module's page is in a folder inside the Modules page's folder: '02.modules/02.module-01/course-page.md', or a

@@ -507,6 +507,9 @@ if ($repo !== null) {
         $pagesFolder = findCourseFolder($searchFolder);
         $reader = new CourseGravReader();
         $course = $reader->read($pagesFolder);
+        if ($course->modulesPage === null) {
+            fail('No Modules page was found in that course. The bridge moves a course\'s modules: its Modules page (module.md, or 30.modules from the Common Cartridge Converter) or Weekly Units page.');
+        }
         $writer = new CourseDocsifyWriter();
         $writer->write($course, $pagesFolder, $work . '/out', $siteUrl);
         $warnings = array_values(array_unique(array_merge($reader->notes, $writer->warnings)));
