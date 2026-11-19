@@ -168,14 +168,19 @@ class Helpers
 
     // A card on the Guides or Courses page, as Quark 2 Open Publishing shows them: an image linking to the page (or ''),
     // the title as a link (an <h2>, so cards line up), then lines of text.
+    // $linkImage: false for a decorative image (empty alt text, no link), so the card has one link, its title, and a
+    // screen reader doesn't announce the same link twice
     // $page: the Docsify page, e.g. 'cpt363-basic/home'; $image: its address from the site's top
     // $markdownTitle: the title as a Markdown heading link to the page's file, which also works when browsing the files
     // on GitHub (course cards; guide cards keep the HTML link, so their titles stay out of the sidebar and search)
-    public static function card(string $page, string $title, string $image, string $alt, array $text, string $badge = '', bool $markdownTitle = false): array
+    public static function card(string $page, string $title, string $image, string $alt, array $text, string $badge = '', bool $markdownTitle = false, bool $linkImage = true): array
     {
         $card = ['<div class="card">', ''];
-        if ($image !== '') {
+        if ($image !== '' && $linkImage) {
             $card[] = '[![' . $alt . '](' . $image . ' ":no-zoom")](' . $page . '.md)';
+            $card[] = '';
+        } elseif ($image !== '') {
+            $card[] = '![](' . $image . ' ":no-zoom")';
             $card[] = '';
         }
         $card[] = self::cardTitle($page, $title, $markdownTitle, $badge);

@@ -251,7 +251,8 @@ class CourseDocsifyWriter
             $card = ['<div class="card">', ''];
             $image = $images[$module->slug()];
             if ($image !== '') {
-                $card = array_merge($card, ['[![' . $module->title() . '](' . $image . ' ":no-zoom")](' . $module->slug() . '.md)', '']);
+                // a decorative image (empty alt text, no link): the card's one link is its title
+                $card = array_merge($card, ['![](' . $image . ' ":no-zoom")', '']);
             } elseif ($withImages) {
                 $card = array_merge($card, ['<p></p>', '']);
             }
@@ -810,7 +811,7 @@ class CourseDocsifyWriter
         if ($banner !== '') {
             $image = $slug . '/' . $banner;
         }
-        return Helpers::card($slug . '/home', $title, $image, $title, [$course->coursePage->setting('description')], '', true);
+        return Helpers::card($slug . '/home', $title, $image, $title, [$course->coursePage->setting('description')], '', true, false);
     }
 
     // Grav Markdown → Docsify Markdown, as for guides: embeds, callouts, links between the course's pages, then links
