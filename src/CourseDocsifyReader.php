@@ -8,7 +8,7 @@ use Symfony\Component\Yaml\Yaml;
 // Docsify Open Course Starter Kit, is turned into a new course folder.
 class CourseDocsifyReader
 {
-    // things worth checking, for conversion-notes.txt
+    // things worth checking, for bridge-notes.txt
     public array $notes = [];
 
     private string $dir;

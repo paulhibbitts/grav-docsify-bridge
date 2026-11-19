@@ -13,7 +13,7 @@ class DocsifyFirstReader
     // a single-guide site: the guide's home is home.md, and its sections are top-level folders
     private bool $single = false;
     private string $singleGuideSlug = '';
-    // settings that couldn't be found and were given a default, for conversion-notes.txt
+    // settings that couldn't be found and were given a default, for bridge-notes.txt
     public array $notes = [];
     // every Docsify file read, to find the pages that weren't converted
     private array $filesRead = [];

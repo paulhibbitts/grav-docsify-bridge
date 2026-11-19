@@ -10,7 +10,7 @@ class CourseDocsifyWriter
     // the first line of the Modules page the converter makes, so the way back knows to skip it
     public const MODULES_PAGE_MARKER = '<!-- grav:modules-page -->';
 
-    // Links that only work on the Grav site, and anything else worth checking (for conversion-notes.txt)
+    // Links that only work on the Grav site, and anything else worth checking (for bridge-notes.txt)
     public array $warnings = [];
     // the header image's address in the course's images/ ('' when it has none), for its card on the Courses page
     public string $bannerImage = '';

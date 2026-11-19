@@ -8,7 +8,7 @@ class DocsifyWriter
     // A page outside the reading order hides the sidebar with this line, at the end of the page
     public const HIDE_SIDEBAR = '<style>aside.sidebar, button.sidebar-toggle { display: none !important; } section.content { left: 0 !important; transition: none !important; }</style>';
 
-    // Links that only work on the Grav site, and anything else worth checking (for conversion-notes.txt)
+    // Links that only work on the Grav site, and anything else worth checking (for bridge-notes.txt)
     public array $warnings = [];
 
     private string $pagesDir;

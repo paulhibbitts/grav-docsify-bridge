@@ -217,7 +217,7 @@
           Original site address <span class="font-normal text-stone-500 dark:text-stone-400">(optional)</span>
         </label>
         <input type="url" name="site_url" id="site-url" placeholder="e.g. https://my-guides.example.org" class="w-full px-3 py-2 text-[15px] border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-sky-500">
-        <span class="block text-[13px] text-stone-500 dark:text-stone-400 mt-1">Links to pages that aren't moved (an About page, the blog) then point to your Grav site. Without it, they're listed in <code>conversion-notes.txt</code>.</span>
+        <span class="block text-[13px] text-stone-500 dark:text-stone-400 mt-1">Links to pages that aren't moved (an About page, the blog) then point to your Grav site. Without it, they're listed in <code>bridge-notes.txt</code>.</span>
       </div>
 
       <div class="flex flex-col gap-[3px] my-5">
@@ -277,7 +277,7 @@
         <p><strong>Docsify to Grav:</strong> the repo is downloaded from GitHub. Each guide's sidebar gives its sections and pages, in order; its pages give their titles, section numbers and Learning Objectives; and the guide home and Guides page give the cards, the Side Box and the authors line. The result is an Open Publishing Space <code>pages</code> folder: a Guides List page, and for each guide a Section List page with numbered section and page folders. Settings only Grav has get the Open Publishing Space defaults. Callouts become shortcodes where their type and heading match one; others stay as callouts, which Open Publishing Space also shows. Pages this bridge made go back exactly as they were.</p>
         <p><strong>Courses:</strong> a course's modules (or weekly units) become Docsify pages laid out like the <a href="https://github.com/hibbitts-design/docsify-open-course-starter-kit" class="underline underline-offset-2">Docsify Open Course Starter Kit</a> and shown like the course in Open Course Space – the course's header image and name at the top of the home page, with its announcement, the modules and LMS links in the sidebar, and the menu pages and Contact in the navbar. The way back gives an Open Course Space course folder: a module for each sidebar link (module pages not in the sidebar become hidden modules), a menu page for each navbar link, and the sidebar from the Contact page and LMS links. Slides, videos and other embeds become Open Course Space's shortcodes, and a banner at the top of the home page becomes the course's header image. A whole Open Course Space site becomes a Docsify site with a folder for each published course and the Courses page as its home page, with a card for each course – and goes back the same way. A Docsify site of several courses made by hand, like the <a href="https://github.com/hibbitts-design/docsify-this-courses-site" class="underline underline-offset-2">Docsify-This Courses Site Template</a>, works too: each card on its home page becomes a course. Courses this bridge made go back exactly as they were.</p>
         <p><strong>Grav to Docsify:</strong> each guide becomes a folder with its home page, a folder per section with its pages, a <code>_sidebar.md</code> with the reading order (which also sets Previous/Next) and a <code>_navbar.md</code>. The Guides List page becomes <code>home.md</code>, with a card for each guide. Callout shortcodes such as <code>[reflection]</code> become Docsify callouts, Learning Objectives appear at the top of each section, links between pages are adjusted, and images are copied beside their pages. With "Keep notes for moving back to Grav", each page also gets a hidden note with its original Grav settings, which Docsify doesn't show.</p>
-        <p>Your own text is otherwise left as it is. A <code>conversion-notes.txt</code> in each zip lists what was moved and anything to check.</p>
+        <p>Your own text is otherwise left as it is. A <code>bridge-notes.txt</code> in each zip lists what was moved and anything to check.</p>
       </div>
     </details>
   </div>
@@ -395,9 +395,9 @@ function showDone(response, fileName) {
   }
   message += ' to ' + platform + ' – ' + fileName + ' has been downloaded.';
   if (warningCount === 1) {
-    message += ' 1 thing to check: see conversion-notes.txt in the zip.';
+    message += ' 1 thing to check: see bridge-notes.txt in the zip.';
   } else if (warningCount > 1) {
-    message += ' ' + warningCount + ' things to check: see conversion-notes.txt in the zip.';
+    message += ' ' + warningCount + ' things to check: see bridge-notes.txt in the zip.';
   }
   doneBox.textContent = message;
   doneBox.style.display = 'block';

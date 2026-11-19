@@ -6,7 +6,7 @@ use Symfony\Component\Yaml\Yaml;
 // Reads the guides of an Open Publishing Space site from its user/pages folder
 class GravReader
 {
-    // things worth checking, for conversion-notes.txt
+    // things worth checking, for bridge-notes.txt
     public array $notes = [];
 
     public function read(string $pagesDir): Site

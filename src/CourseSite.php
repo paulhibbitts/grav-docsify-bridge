@@ -6,7 +6,7 @@ namespace OPG;
 // converted as a course on its own (see CourseDocsifyWriter and CourseDocsifyReader).
 class CourseSite
 {
-    // things worth checking, for conversion-notes.txt
+    // things worth checking, for bridge-notes.txt
     public array $notes = [];
     // the courses converted, each as a Site
     public array $courses = [];

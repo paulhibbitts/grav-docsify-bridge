@@ -208,11 +208,11 @@ function findDocsifyFolder(string $dir): string
     return $docsifyFolder;
 }
 
-// Saves conversion-notes.txt: what was converted, anything to check, and any tips. $courses: the courses converted,
+// Saves bridge-notes.txt: what was moved, anything to check, and any tips. $courses: the courses converted,
 // listed instead of guides – a course's modules, or each course of several
 function writeNotes(string $file, array $guides, array $warnings, array $tips = [], array $courses = []): void
 {
-    $notes = ['Open Publishing Course Space Bridge – conversion notes', ''];
+    $notes = ['Open Publishing Course Space Bridge – notes', ''];
     if (count($courses) === 1) {
         $course = $courses[0];
         $notes[] = 'Course moved: ' . count($course->modulesPage->children) . ' modules and ' . count($course->coursePages) . ' menu pages';
@@ -448,7 +448,7 @@ $course = null;
 // a whole Open Course Space site (its Courses page and courses), and the courses converted, each a Site
 $courseSite = null;
 $courses = [];
-// tips for conversion-notes.txt
+// tips for bridge-notes.txt
 $tips = [];
 
 if ($repo !== null) {
@@ -590,7 +590,7 @@ if ($course !== null && count($courses) === 0) {
 if ($direction === 'docsify' && !$keepNotes) {
     Helpers::removeGravNotes($work . '/out');
 }
-writeNotes($work . '/out/conversion-notes.txt', $guides, $warnings, $tips, $courses);
+writeNotes($work . '/out/bridge-notes.txt', $guides, $warnings, $tips, $courses);
 
 // ---- a preview: sample pages instead of the zip ----
 

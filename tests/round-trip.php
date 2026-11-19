@@ -245,7 +245,7 @@ function filesIn(string $folder): array
     $items = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($folder, FilesystemIterator::SKIP_DOTS));
     foreach ($items as $item) {
         $name = $item->getFilename();
-        if ($name === 'conversion-notes.txt' || str_starts_with($name, '.')) {
+        if ($name === 'bridge-notes.txt' || str_starts_with($name, '.')) {
             continue;
         }
         $files[] = substr($item->getPathname(), strlen($folder) + 1);
