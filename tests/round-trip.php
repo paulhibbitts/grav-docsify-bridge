@@ -92,6 +92,28 @@ foreach (["$work/guides-clean", "$work/course-clean"] as $folder) {
 }
 $failed += report('Clean Docsify pages have no hidden notes', $leftNotes);
 
+// 4c. A clean course moved back to Grav keeps its name, its modules and its home page's own pages (rebuilt from the
+// sidebar, the navbar's site title and the home page's cards)
+convert('course2grav', "$work/course-clean", "$work/course-clean-back");
+$differences = [];
+$originalCourse = (string)file_get_contents("$samples/01.cpt363-basic/course.md");
+$backCourse = glob("$work/course-clean-back/*/course.md")[0] ?? '';
+preg_match("/^title: (.*)$/m", $originalCourse, $originalTitle);
+if ($backCourse === '' || !str_contains((string)file_get_contents($backCourse), $originalTitle[1] ?? '-')) {
+    $differences[] = 'the course name didn\'t come back';
+}
+$countPages = fn(string $pattern) => count(glob($pattern));
+if ($backCourse !== '') {
+    $backFolder = dirname($backCourse);
+    if ($countPages("$samples/01.cpt363-basic/02.modules/*/course-page.md") !== $countPages("$backFolder/02.modules/*/course-page.md")) {
+        $differences[] = 'not every module came back';
+    }
+    if ($countPages("$samples/01.cpt363-basic/01.home/[0-9]*.[a-z]*/course-page.md") !== $countPages("$backFolder/01.home/[0-9]*.[a-z]*/course-page.md")) {
+        $differences[] = 'not every page of the home page came back';
+    }
+}
+$failed += report('A clean course moved back keeps its name, modules and home pages', $differences);
+
 // 5. A whole Open Course Space site → Docsify → Grav: its Courses page and both courses, file for file (the course
 // from test 2, and the kit's course from test 4)
 mkdir("$work/site/00.courses", 0700, true);

@@ -17,6 +17,12 @@ class CourseDocsifyReader
     // the modules and link groups listed in _sidebar.md, and the pages in _navbar.md
     private array $sidebar = ['modules' => [], 'groups' => []];
     private array $navbar = [];
+    // the site title in the navbar (- [Course Name](home.md ":class=site-title")), the course's name when it has no note
+    private string $siteTitle = '';
+    // the home page's own pages, from its cards as this bridge writes them: file => [title, description]
+    private array $homeCards = [];
+    // the Modules page's cards (modules.md, as this bridge writes it), for each module's description: file => [title, description]
+    private array $moduleCards = [];
     // the course's address on the Grav site, e.g. '/cpt363-basic' (its pages' addresses start with it)
     private string $course = '';
     // in a site of several courses, the course's folder, e.g. 'cpt363-basic/': its links start at the site's top
@@ -276,7 +282,8 @@ class CourseDocsifyReader
     private function newCourse(Site $site): void
     {
         $site->courseFolder = $this->courseFolder !== '' ? $this->courseFolder : self::NEW_COURSE_FOLDER;
-        $settings = ['title' => $this->courseTitle !== '' ? $this->courseTitle : self::NEW_COURSE_TITLE, 'published' => true, 'hide_from_menu' => true];
+        $title = $this->courseTitle !== '' ? $this->courseTitle : ($this->siteTitle !== '' ? $this->siteTitle : self::NEW_COURSE_TITLE);
+        $settings = ['title' => $title, 'published' => true, 'hide_from_menu' => true];
         if ($this->courseDescription !== '') {
             $settings['description'] = $this->courseDescription;
         }
@@ -582,6 +589,20 @@ class CourseDocsifyReader
         foreach ($menuFiles as $file) {
             $this->addresses[$file] = $this->course . '/' . basename($file, '.md');
         }
+        // the pages inside modules, and the home page's own pages (as this bridge writes them)
+        $pageFiles = [];
+        foreach ($this->sidebar['modulePages'] ?? [] as $moduleFile => $pages) {
+            foreach (array_keys($pages) as $file) {
+                $this->addresses[$file] = $this->course . '/' . $unitsSlug . '/' . basename($moduleFile, '.md') . '/' . self::modulePageSlug($file);
+                $pageFiles[] = $file;
+            }
+        }
+        $this->homeCards = $this->homePageCards($this->readFile('home.md'));
+        $this->moduleCards = is_file($this->dir . '/modules.md') ? $this->cardsIn($this->readFile('modules.md')) : [];
+        foreach (array_keys($this->homeCards) as $file) {
+            $this->addresses[$file] = $this->course . '/home/' . substr(basename($file, '.md'), strlen('home-'));
+            $pageFiles[] = $file;
+        }
 
         $site->courseHome = $this->homeFromDocsify($site);
         if ($isWeekly) {
@@ -596,7 +617,15 @@ class CourseDocsifyReader
         }
         foreach ($moduleFiles as $index => $file) {
             $isListed = isset($this->sidebar['modules'][$file]);
-            $site->modulesPage->children[] = $this->moduleFromDocsify($file, sprintf('%02d', $index + 1), $isListed, $isWeekly);
+            $module = $this->moduleFromDocsify($file, sprintf('%02d', $index + 1), $isListed, $isWeekly);
+            $pageNumber = 1;
+            $pageCards = $this->cardsIn($this->readFile($file));
+            foreach ($this->sidebar['modulePages'][$file] ?? [] as $pageFile => $label) {
+                $description = $pageCards[$pageFile][1] ?? '';
+                $module->children[] = $this->pageFromDocsify('module-page', $module->folder . '/' . sprintf('%02d', $pageNumber) . '.' . self::modulePageSlug($pageFile), $pageFile, $label, $description);
+                $pageNumber++;
+            }
+            $site->modulesPage->children[] = $module;
         }
         foreach ($menuFiles as $index => $file) {
             $site->coursePages[] = $this->menuPageFromDocsify($file, sprintf('%02d', $index + 3));
@@ -615,7 +644,7 @@ class CourseDocsifyReader
             $site->courseFooter = $this->newPage('footer', 'footer', 'default.md', ['title' => 'Footer', 'routable' => false, 'visible' => false]);
             $site->courseFooter->body = $this->toGravText($footer, $site->courseFooter, '_footer.md');
         }
-        $this->noteOtherPages(array_merge(['home.md', 'contact.md', 'modules.md'], $moduleFiles, $menuFiles));
+        $this->noteOtherPages(array_merge(['home.md', 'contact.md', 'modules.md'], $moduleFiles, $menuFiles, $pageFiles));
         Helpers::turnOnFootnotes($site);
         $this->notes = array_merge($this->notes, Helpers::docsifyWordingNotes($site));
         return $site;
@@ -648,8 +677,93 @@ class CourseDocsifyReader
             $number++;
             return '[plugin:page-inject](../home/' . $slug . ')';
         }, $text);
+        // the home page's cards (this bridge's list of its own pages) and licence line are made from settings, so they go
+        $text = self::withoutCardList($text, array_keys($this->homeCards));
+        if (preg_match('/\n*Licensed under (?:\[([^\]]+)\]\(([^)\s]+)\)|([^\n]+?))\.\s*$/', $text, $license) === 1) {
+            $site->coursePage->meta['show_oer_attribution'] = true;
+            $site->coursePage->meta['license'] = ($license[1] ?? '') !== '' ? $license[1] : $license[3];
+            if (($license[2] ?? '') !== '') {
+                $site->coursePage->meta['license_url'] = $license[2];
+            }
+            $site->coursePage->yaml = $this->yaml($site->coursePage->meta);
+            $text = substr($text, 0, -strlen($license[0]));
+        }
         $home->body = $this->toGravText(trim($text), $home, 'home.md');
+        $pageNumber = count($home->children) + 1;
+        foreach ($this->homeCards as $file => [$title, $description]) {
+            $slug = substr(basename($file, '.md'), strlen('home-'));
+            $home->children[] = $this->pageFromDocsify('home-page', '01.home/' . sprintf('%02d', $pageNumber) . '.' . $slug, $file, $title, $description);
+            $pageNumber++;
+        }
         return $home;
+    }
+
+    // The cards on the home page that link to its own pages (home-expectations.md …), as this bridge writes them:
+    // home-page file => [title, description]
+    private function homePageCards(string $text): array
+    {
+        return array_filter($this->cardsIn($text), fn($file) => str_starts_with($file, 'home-'), ARRAY_FILTER_USE_KEY);
+    }
+
+    // Every card in a card list that links to a page of the site (as this bridge writes the Modules page, a module's
+    // pages and the home page's pages): page file => [title, description]
+    private function cardsIn(string $text): array
+    {
+        $cards = [];
+        preg_match_all('/<div class="card">\s*\n(.*?)\n<\/div>/s', $text, $found);
+        foreach ($found[1] as $card) {
+            // '## [Expectations](home-expectations.md) …', or in a site of several courses '<h2><a href="#/course/home-x">'
+            if (preg_match('/^## \[([^\]]+)\]\((?:[^)\s]*\/)?([a-z0-9-]+)\.md\)|<h2><a href="#\/(?:[^"]*\/)?([a-z0-9-]+)">([^<]+)<\/a>/m', $card, $link) !== 1) {
+                continue;
+            }
+            $file = ($link[2] ?? '') !== '' ? $link[2] . '.md' : $link[3] . '.md';
+            if (!is_file($this->dir . '/' . $file)) {
+                continue;
+            }
+            $title = ($link[1] ?? '') !== '' ? $link[1] : $link[4];
+            // the card's text after its heading line is the page's description
+            $description = trim(preg_replace('/^.*?(?:<\/h2>|<!--\s*\{docsify-ignore\}\s*-->)\s*/s', '', $card));
+            $cards[$file] = [$title, $description === '<p></p>' ? '' : $description];
+        }
+        return $cards;
+    }
+
+    // A page this bridge wrote inside a module or the home page: its # heading is its title (the sidebar's label or
+    // the card's title), then its text
+    private function pageFromDocsify(string $kind, string $folder, string $file, string $title, string $description): Page
+    {
+        $settings = ['title' => $title, 'published' => true];
+        if ($description !== '') {
+            $settings['description'] = $description;
+        }
+        $page = $this->newPage($kind, $folder, 'course-page.md', $settings);
+        $text = preg_replace('/^\s*# [^\n]*\n/', '', $this->readFile($file), 1);
+        $page->body = $this->toGravText(trim($text), $page, $file);
+        return $page;
+    }
+
+    // A page inside a module's folder name: 'module-01-02-a2-creating-multiple-objects.md' → 'a2-creating-multiple-objects'
+    private static function modulePageSlug(string $file): string
+    {
+        return preg_replace('/^module-\d+-\d+-/', '', basename($file, '.md'));
+    }
+
+    // The text without a card list (<div class="card-list…">…</div>) whose cards all link to these pages – a list this
+    // bridge made from the pages' settings
+    private static function withoutCardList(string $text, array $files): string
+    {
+        if (count($files) === 0) {
+            return $text;
+        }
+        return preg_replace_callback('/\n*<div class="card-list[^"]*">\n.*?\n<\/div>\n(?:\s*\n)*<\/div>\s*/s', function ($match) use ($files) {
+            preg_match_all('/(?:\]\(|href="#\/(?:[^"]*\/)?)([a-z0-9-]+)(?:\.md)?[)"]/', $match[0], $links);
+            foreach ($links[1] as $link) {
+                if (!in_array($link . '.md', $files, true)) {
+                    return $match[0];
+                }
+            }
+            return "\n";
+        }, $text);
     }
 
     // A module page: the banner image and its credit become the module's header image, the # heading its description
@@ -711,6 +825,12 @@ class CourseDocsifyReader
             $settings['learning_objectives'] = trim(implode("\n", $objectives));
             $i = $this->skipBlankLines($lines, $j);
         }
+        // without one on the page, the description is its card's text on the Modules page (already the module's text, so
+        // no heading is added for it)
+        $descriptionFromPage = isset($settings['description']);
+        if (!$descriptionFromPage && ($this->moduleCards[$file][1] ?? '') !== '') {
+            $settings['description'] = $this->moduleCards[$file][1];
+        }
         // a module not in the sidebar opens from links but isn't listed, as in Docsify (a week not in the sidebar is
         // one still to come: unpublished, as in Open Course Space)
         if (!$isListed && !$isWeek) {
@@ -723,6 +843,7 @@ class CourseDocsifyReader
             $page = $this->newPage('module', '02.modules/' . $number . '.' . $slug, 'course-page.md', $settings);
         }
         $body = trim(implode("\n", array_slice($lines, $i)));
+        $body = trim(self::withoutCardList($body, array_keys($this->sidebar['modulePages'][$file] ?? [])));
         if ($headerImage !== null) {
             // the header image goes beside the page like its other images; Open Course Space shows it at the top
             $this->addImage($page, $headerImage[2], $file);
@@ -743,8 +864,8 @@ class CourseDocsifyReader
         }
         // the page starts with its description, as Open Course Space's own modules do, with the page's sections a level
         // below it (## → ###), so the list of sections beside the page doesn't start with the description
-        if (isset($settings['description'])) {
-            $page->body = '## **' . $settings['description'] . "**\n\n" . self::headingsDown($page->body);
+        if ($descriptionFromPage) {
+            $page->body = '## ' . $settings['description'] . "\n\n" . self::headingsDown($page->body);
         }
         $page->yaml = $this->yaml($page->meta);
         return $page;
@@ -875,8 +996,11 @@ class CourseDocsifyReader
                 // a module with pages inside it: the group's heading is the module's title, and its first link
                 // (Overview) is the module's own page
                 if (!isset($sidebar['groups'][$group]['module'])) {
-                    $sidebar['groups'][$group]['module'] = true;
+                    $sidebar['groups'][$group]['module'] = $this->siteFile($link[2]);
                     $sidebar['modules'][$this->siteFile($link[2])] = $sidebar['groups'][$group]['heading'];
+                } elseif ($this->siteFile($link[2]) !== '') {
+                    // the links after it are the module's pages: module file => [page file => sidebar label]
+                    $sidebar['modulePages'][$sidebar['groups'][$group]['module']][$this->siteFile($link[2])] = $link[1];
                 }
             } elseif ($group !== null && preg_match('/^\s+[-*] (\[.+\]\([^)]+\))\s*$/', $line, $found) === 1) {
                 // a link in the group, indented:   - [Calendar](https://…)
@@ -910,6 +1034,9 @@ class CourseDocsifyReader
     private function parseNavbar(string $text): array
     {
         $navbar = [];
+        if (preg_match('/^\s*[-*] \[([^\]]+)\]\(home\.md\s+["\']:class=site-title["\']\)/m', $text, $title) === 1) {
+            $this->siteTitle = trim($title[1]);
+        }
         preg_match_all('/^\s*[-*] \[([^\]]+)\]\(([^)\s]+)\)/m', $text, $found, PREG_SET_ORDER);
         foreach ($found as $match) {
             // in a site of several courses, the way back to the Courses page (home.md at the site's top; #/ before)
