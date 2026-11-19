@@ -180,7 +180,9 @@ class Helpers
             $card[] = '[![' . $alt . '](' . $image . ' ":no-zoom")](' . $page . '.md)';
             $card[] = '';
         } elseif ($image !== '') {
-            $card[] = '![](' . $image . ' ":no-zoom")';
+            // a plain image (the card's title is its one link, which CSS stretches over the whole card); empty alt
+            // text when it would only repeat the title, otherwise the author's own
+            $card[] = '![' . ($alt !== $title ? $alt : '') . '](' . $image . ' ":no-zoom")';
             $card[] = '';
         }
         $card[] = self::cardTitle($page, $title, $markdownTitle, $badge);

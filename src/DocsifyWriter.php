@@ -481,7 +481,7 @@ class DocsifyWriter
             $badge = ' <span class="badge">' . $guide->setting('badge_label') . '</span>';
         }
         $text = [$guide->setting('subtitle'), '<small>' . $guide->setting('authors') . '<br>' . $guide->setting('edition') . $this->updated($guide) . '</small>'];
-        return Helpers::card($guideSlug . '/README', $guide->title(), $image, $alt, $text, $badge, true);
+        return Helpers::card($guideSlug . '/README', $guide->title(), $image, $alt, $text, $badge, true, false);
     }
 
     // The Guides page (Grav's Guides List page), with a card for each guide

@@ -733,7 +733,7 @@ class DocsifyFirstReader
                 if ($line === '') {
                     continue;
                 }
-                if (preg_match('/^\[!\[[^\]]*\]\(([^)\s"]+)[^)]*\)\]\(([^)\s]+)\)$/', $line, $found) === 1) {
+                if (preg_match('/^\[?!\[[^\]]*\]\(([^)\s"]+)[^)]*\)(?:\]\([^)\s]+\))?$/', $line, $found) === 1) {
                     $card['image'] = $found[1];
                 } elseif (preg_match('/<h2><a href="#\/([^"]+)">(.*?)<\/a>/', $line, $found) === 1) {
                     $card['file'] = $this->docsifyFile($found[1]);
@@ -806,7 +806,8 @@ class DocsifyFirstReader
                 if ($line === '') {
                     continue;
                 }
-                if (preg_match('/^\[!\[([^\]]*)\]\(([^)\s"]+)[^)]*\)\]\(([^)\s]+)\)$/', $line, $found) === 1) {
+                // the cover image, linked or plain: [![Alt](image.jpg)](guide/README.md) or ![](image.jpg)
+                if (preg_match('/^\[?!\[([^\]]*)\]\(([^)\s"]+)[^)]*\)(?:\]\([^)\s]+\))?$/', $line, $found) === 1) {
                     $card['cover_image_alt'] = $found[1];
                     $card['cover_image'] = basename($found[2]);
                     $card['cover_source'] = $this->dir . '/' . $found[2];
