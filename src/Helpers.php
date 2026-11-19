@@ -233,8 +233,11 @@ class Helpers
             // (such as [term]) goes on its own
             $cleaner = preg_replace(['/^(?:>[ \t]?)*' . $note . '\n/ms', '/' . $note . '/s'], '', $text);
             // (null if a very long page is too much for PHP's pattern matching: the page is then left as it is)
-            if ($cleaner !== null) {
-                file_put_contents($file->getPathname(), ltrim($cleaner, "\n"));
+            // only a page that had notes is rewritten (an empty _navbar.md's line break is kept: Docsify skips an
+            // empty file and keeps the last page's navbar), and a page that was only a note keeps a line break too
+            if ($cleaner !== null && $cleaner !== $text) {
+                $cleaner = ltrim($cleaner, "\n");
+                file_put_contents($file->getPathname(), $cleaner === '' ? "\n" : $cleaner);
             }
         }
     }

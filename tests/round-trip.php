@@ -84,6 +84,10 @@ foreach (["$work/guides-clean", "$work/course-clean"] as $folder) {
         if (str_ends_with($file, '.md') && preg_match('/<!-- \/?grav/', (string)file_get_contents("$folder/$file")) === 1) {
             $leftNotes[] = "$file still has a hidden note";
         }
+        // (an empty page would make Docsify keep the last page's navbar or sidebar)
+        if (str_ends_with($file, '.md') && filesize("$folder/$file") === 0) {
+            $leftNotes[] = "$file is empty";
+        }
     }
 }
 $failed += report('Clean Docsify pages have no hidden notes', $leftNotes);

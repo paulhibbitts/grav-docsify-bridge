@@ -140,6 +140,9 @@ class CourseDocsifyWriter
         // ({docsify-ignore}); a copy of it as the text's first heading is hidden (see withoutRepeatedHeading())
         $description = $module->setting('description');
         $body = $this->withImagesFolder($module);
+        if ($module->file === 'item.md') {
+            $body = self::withoutWeekSummary($body);
+        }
         if ($description !== '') {
             $body = $this->withoutRepeatedHeading($body, $description);
         }
@@ -161,6 +164,23 @@ class CourseDocsifyWriter
             $lines = array_merge($lines, ['', ''], Helpers::generated(array_merge(['<div class="card-list-rows' . $this->cardLines . '">', ''], $cards, ['</div>'])));
         }
         $this->writeFile($file, implode("\n", $lines));
+    }
+
+    // A week's summary (its text above ===) is shown only in Open Course Space's Weekly Units list, not on the week's
+    // own page, so its lines are kept in hidden notes, as Grav-only text is, and come back on the way to Grav
+    private static function withoutWeekSummary(string $body): string
+    {
+        $parts = preg_split('/(?<=\n\n)(?====[ \t]*(?:\n|$))/', $body, 2);
+        if (count($parts) < 2) {
+            return $body;
+        }
+        $lines = explode("\n", $parts[0]);
+        foreach ($lines as $number => $line) {
+            if (trim($line) !== '') {
+                $lines[$number] = Embeds::hiddenLine($line);
+            }
+        }
+        return implode("\n", $lines) . $parts[1];
     }
 
     // A card for each page inside a module that's shown (not hidden or unpublished): its title, and its description
