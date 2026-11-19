@@ -48,7 +48,7 @@ class CourseGravReader extends GravReader
             // the skeleton's Read Me page is about setting up the Grav site (Git Sync, the Admin panel), not the course
             if (Helpers::slugFromFolder($name) === 'readme') {
                 $page = $this->readPage($pagesDir, $name, $file, 'menu');
-                $this->notes[] = $page->title() . ' (' . $name . ') is about the Grav site, so it wasn\'t converted';
+                $this->notes[] = $page->title() . ' (' . $name . ') is about the Grav site, so it wasn\'t moved';
                 continue;
             }
             if (Helpers::slugFromFolder($name) === 'home') {
@@ -59,7 +59,7 @@ class CourseGravReader extends GravReader
             if ($this->isMenuPage($name, $file, $page)) {
                 $site->coursePages[] = $page;
             } elseif (Helpers::isNumbered($name) && ($page->meta['routable'] ?? true) !== false) {
-                $this->notes[] = $page->title() . ' (' . $name . ') isn\'t part of the modules, so it wasn\'t converted';
+                $this->notes[] = $page->title() . ' (' . $name . ') isn\'t part of the modules, so it wasn\'t moved';
             }
         }
         return $site;
@@ -85,12 +85,12 @@ class CourseGravReader extends GravReader
                     $page = $this->readPage($pagesDir, $pageFolder, $pageFile, 'module-page');
                     // only numbered course pages, one level inside the module, are carried across: anything else is noted
                     if ($pageFile !== 'course-page.md' || !Helpers::isNumbered($pageName)) {
-                        $this->notes[] = $page->title() . ' (' . $pageFolder . ') isn\'t a page of its module, so it wasn\'t converted';
+                        $this->notes[] = $page->title() . ' (' . $pageFolder . ') isn\'t a page of its module, so it wasn\'t moved';
                         continue;
                     }
                     foreach ($this->subfolders($pagesDir . '/' . $pageFolder) as $deeper) {
                         if ($this->markdownFile($pagesDir . '/' . $pageFolder . '/' . $deeper) !== '') {
-                            $this->notes[] = $pageFolder . '/' . $deeper . ' is a page inside a page of a module, so it wasn\'t converted';
+                            $this->notes[] = $pageFolder . '/' . $deeper . ' is a page inside a page of a module, so it wasn\'t moved';
                         }
                     }
                     $module->children[] = $page;

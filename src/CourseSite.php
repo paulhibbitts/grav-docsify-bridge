@@ -32,11 +32,11 @@ class CourseSite
             // a switched-off course isn't on the Courses page, so it isn't converted
             $isSwitchedOff = isset($course->coursePage->meta['published']) && $course->coursePage->meta['published'] === false;
             if ($isSwitchedOff) {
-                $this->notes[] = $course->coursePage->title() . ' (' . $name . ') is switched off, so it wasn\'t converted';
+                $this->notes[] = $course->coursePage->title() . ' (' . $name . ') is switched off, so it wasn\'t moved';
                 continue;
             }
             if ($course->modulesPage === null) {
-                $this->notes[] = $course->coursePage->title() . ' (' . $name . ') has no Modules or Weekly Units page, so it wasn\'t converted';
+                $this->notes[] = $course->coursePage->title() . ' (' . $name . ') has no Modules or Weekly Units page, so it wasn\'t moved';
                 continue;
             }
             $slug = Helpers::slugFromFolder($name);

@@ -215,17 +215,17 @@ function writeNotes(string $file, array $guides, array $warnings, array $tips = 
     $notes = ['Open Publishing Course Space Bridge – conversion notes', ''];
     if (count($courses) === 1) {
         $course = $courses[0];
-        $notes[] = 'Course converted: ' . count($course->modulesPage->children) . ' modules and ' . count($course->coursePages) . ' menu pages';
+        $notes[] = 'Course moved: ' . count($course->modulesPage->children) . ' modules and ' . count($course->coursePages) . ' menu pages';
         foreach ($course->modulesPage->children as $module) {
             $notes[] = '- ' . $module->title();
         }
     } elseif (count($courses) > 1) {
-        $notes[] = 'Courses converted: ' . count($courses);
+        $notes[] = 'Courses moved: ' . count($courses);
         foreach ($courses as $course) {
             $notes[] = '- ' . $course->coursePage->title() . ' (' . count($course->modulesPage->children) . ' modules, ' . count($course->coursePages) . ' menu pages)';
         }
     } else {
-        $notes[] = 'Guides converted: ' . count($guides);
+        $notes[] = 'Guides moved: ' . count($guides);
     }
     foreach ($guides as $guide) {
         $pageCount = 0;
@@ -455,7 +455,7 @@ if ($repo !== null) {
     $docsifyFolder = findDocsifyFolder($searchFolder);
     if ($docsifyFolder === '') {
         if (findPagesFolder($searchFolder) !== '') {
-            fail('That repo has Grav pages, not a Docsify site. To convert them to Docsify, zip its pages folder and use "Grav to Docsify".');
+            fail('That repo has Grav pages, not a Docsify site. To move them to Docsify, zip its pages folder and use "Grav to Docsify".');
         }
         fail('No Docsify guide site or course was found in that repo. This bridge works with guide sites and courses: a home.md, and a _sidebar.md listing their pages.');
     }
@@ -527,7 +527,7 @@ if ($repo !== null && $course === null) {
     $reader = new DocsifyReader();
     $site = $reader->read($docsifyFolder);
     if (count($site->guides) === 0) {
-        fail('No guides or course were found in that Docsify site. This bridge works with guide sites and courses: a home.md, and a _sidebar.md listing their pages. Single pages, blogs and sites of topic pages aren\'t converted.');
+        fail('No guides or course were found in that Docsify site. This bridge works with guide sites and courses: a home.md, and a _sidebar.md listing their pages. Single pages, blogs and sites of topic pages aren\'t moved.');
     }
     // a pages folder, for the Grav site's user folder
     (new GravWriter())->write($site, $work . '/out/pages');
@@ -552,7 +552,7 @@ if ($repo !== null && $course === null) {
     $pagesFolder = findPagesFolder($searchFolder);
     if ($pagesFolder === '') {
         if (findDocsifyFolder($searchFolder) !== '') {
-            fail('That zip has a Docsify site, not Grav pages. To convert it to Grav, enter its GitHub repo address under "Docsify to Grav".');
+            fail('That zip has a Docsify site, not Grav pages. To move it to Grav, enter its GitHub repo address under "Docsify to Grav".');
         }
         fail('No Open Publishing Space guides or Open Course Space course were found in that zip. Zip your site\'s user/pages folder for guides (each guide is a folder with a section-list.md or guide.md page), or a course\'s own folder (with its course.md)');
     }
@@ -560,7 +560,7 @@ if ($repo !== null && $course === null) {
     $reader = new GravReader();
     $site = $reader->read($pagesFolder);
     if (count($site->guides) === 0) {
-        fail('No published guides were found in that zip. A guide that\'s switched off (Published turned off) isn\'t converted.');
+        fail('No published guides were found in that zip. A guide that\'s switched off (Published turned off) isn\'t moved.');
     }
     if ($site->isSingleGuide()) {
         $single = true;

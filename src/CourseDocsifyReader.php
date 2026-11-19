@@ -837,7 +837,7 @@ class CourseDocsifyReader
         $group = null;
         foreach (explode("\n", str_replace("\r\n", "\n", $text)) as $line) {
             if (preg_match('/^\s*<(?!!--)[a-z]/i', $line) === 1) {
-                $this->addNote('a sidebar has HTML (such as a form or button), which wasn\'t converted');
+                $this->addNote('a sidebar has HTML (such as a form or button), which wasn\'t moved');
                 continue;
             }
             // a module: - [Week 1](module-01)
@@ -851,7 +851,7 @@ class CourseDocsifyReader
                 if ($file !== '') {
                     $sidebar['modules'][$file] = $found[1];
                 } else {
-                    $this->addNote('the sidebar link to "' . $found[1] . '" isn\'t a page of the course, so it wasn\'t converted');
+                    $this->addNote('the sidebar link to "' . $found[1] . '" isn\'t a page of the course, so it wasn\'t moved');
                 }
                 $group = null;
             } elseif (preg_match('/^[-*] (?:\*\*)?([^*\[]+?)(?:\*\*)?\s*$/', $line, $found) === 1) {
@@ -908,7 +908,7 @@ class CourseDocsifyReader
             if ($file !== '') {
                 $navbar[$file] = $match[1];
             } else {
-                $this->addNote('the navbar link to "' . $match[1] . '" isn\'t a page of the course, so it wasn\'t converted');
+                $this->addNote('the navbar link to "' . $match[1] . '" isn\'t a page of the course, so it wasn\'t moved');
             }
         }
         return $navbar;
@@ -948,17 +948,17 @@ class CourseDocsifyReader
                 continue;
             }
             if (in_array($file, ['_coverpage.md', 'coverpage.md'], true)) {
-                $this->addNote($file . ' (Docsify\'s cover page) isn\'t used in Grav, so it wasn\'t converted');
+                $this->addNote($file . ' (Docsify\'s cover page) isn\'t used in Grav, so it wasn\'t moved');
                 continue;
             }
             // a Starter Kit's copy of a page for an LMS (lms-schedule.md for schedule.md): Grav embeds the page itself
             $original = substr($file, strlen('lms-'));
             if (str_starts_with($file, 'lms-') && in_array($original, $converted, true)) {
-                $this->addNote($file . ' (a copy of ' . $original . ' for an LMS) wasn\'t converted – in Grav, embed that page '
+                $this->addNote($file . ' (a copy of ' . $original . ' for an LMS) wasn\'t moved – in Grav, embed that page '
                     . 'itself by adding ?embedded=true to its address');
                 continue;
             }
-            $this->addNote($file . ' isn\'t in the sidebar or navbar, so it wasn\'t converted');
+            $this->addNote($file . ' isn\'t in the sidebar or navbar, so it wasn\'t moved');
         }
     }
 

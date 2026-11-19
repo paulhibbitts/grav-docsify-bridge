@@ -26,7 +26,7 @@ class GravReader
                 // a switched-off guide isn't on the Guides page, so it isn't converted (as for courses)
                 $isSwitchedOff = isset($guide->meta['published']) && $guide->meta['published'] === false;
                 if ($isSwitchedOff) {
-                    $this->notes[] = $guide->title() . ' (' . $name . ') is switched off, so it wasn\'t converted';
+                    $this->notes[] = $guide->title() . ' (' . $name . ') is switched off, so it wasn\'t moved';
                 } else {
                     $site->guides[] = $guide;
                 }

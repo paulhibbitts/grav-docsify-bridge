@@ -86,7 +86,7 @@ class DocsifyFirstReader
     private function addGuide(Site $site, Page $guide): void
     {
         if (count($guide->children) === 0) {
-            $this->notes[] = $guide->title() . ' has no pages in the site, so it wasn\'t converted';
+            $this->notes[] = $guide->title() . ' has no pages in the site, so it wasn\'t moved';
             return;
         }
         $site->guides[] = $guide;
@@ -122,7 +122,7 @@ class DocsifyFirstReader
             // Docsify's cover page and footer have no place in a Grav guide (its theme has its own footer)
             $docsifyOnly = ['_coverpage.md' => 'Docsify\'s cover page', '_footer.md' => 'Docsify\'s footer'];
             if (isset($docsifyOnly[basename($path)])) {
-                $this->notes[] = $path . ' (' . $docsifyOnly[basename($path)] . ') isn\'t used in Grav, so it wasn\'t converted';
+                $this->notes[] = $path . ' (' . $docsifyOnly[basename($path)] . ') isn\'t used in Grav, so it wasn\'t moved';
             }
             if ($isMarkdown && !$isDocsifyFile && $path !== 'README.md' && !in_array($path, $this->filesRead, true)) {
                 $unconverted[] = $path;
@@ -130,7 +130,7 @@ class DocsifyFirstReader
         }
         sort($unconverted);
         foreach ($unconverted as $path) {
-            $this->notes[] = $path . ' isn\'t part of a guide, so it wasn\'t converted';
+            $this->notes[] = $path . ' isn\'t part of a guide, so it wasn\'t moved';
         }
     }
 
@@ -189,7 +189,7 @@ class DocsifyFirstReader
             $isHidden = str_starts_with($name, '.');
             if (!$isHidden && $this->isTranslation($name)) {
                 $this->translations[] = $name;
-                $this->notes[] = $name . '/ is a translation of the site, so it wasn\'t converted (only the main language is)';
+                $this->notes[] = $name . '/ is a translation of the site, so it wasn\'t moved (only the main language is)';
                 continue;
             }
             $sidebarFile = $this->dir . '/' . $name . '/_sidebar.md';
@@ -911,9 +911,9 @@ class DocsifyFirstReader
         // the link's own address is the last (…) on the line, after any icon image inside its text
         if (preg_match('/^\s*- \[(.*)\]\(((?:[a-z]+:|\/\/)[^()\s]+)(?:\s+"[^"]*")?\)\s*$/i', $line, $found) === 1) {
             $text = trim(strip_tags(preg_replace('/!\[[^\]]*\]\([^)]*\)/', '', $found[1])));
-            $note = 'the sidebar link to "' . $text . '" (' . $found[2] . ') goes to another site, so it wasn\'t converted';
+            $note = 'the sidebar link to "' . $text . '" (' . $found[2] . ') goes to another site, so it wasn\'t moved';
         } elseif (preg_match('/^\s*<(?!!--)[a-z]/i', $line) === 1) {
-            $note = 'a sidebar has HTML (such as a form or button), which wasn\'t converted';
+            $note = 'a sidebar has HTML (such as a form or button), which wasn\'t moved';
         }
         if ($note !== '' && !in_array($note, $this->notes, true)) {
             $this->notes[] = $note;
