@@ -30,6 +30,11 @@ class Embeds
         $markdown = preg_replace_callback('/(?<=\n\n)===[ \t]*(?=\n|$)/', function ($match) {
             return self::hiddenLine($match[0]);
         }, $markdown);
+        // the Pressbooks Converter's line about what the Grav site supports ("*[Grav Open Publishing Space](…)
+        // supports embedded video, audio, and H5P activities. …*") isn't about Docsify: kept in a hidden note
+        $markdown = preg_replace_callback('/^\*\[Grav [^\]]+\]\([^)]*\) supports embedded video, audio, and H5P activities\.[^\n]*\*[ \t]*$/m', function ($match) {
+            return self::hiddenLine($match[0]);
+        }, $markdown);
         // the badge (the label form is marked, so it goes back the same way)
         $markdown = preg_replace('/\[badge\](.*?)\[\/badge\]/', "<span class='badge'>$1</span>", $markdown);
         $markdown = preg_replace('/\[badge label="([^"]*)"\]\[\/badge\]/', "<span class='badge' data-grav='label'>$1</span>", $markdown);

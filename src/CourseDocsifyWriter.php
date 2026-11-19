@@ -29,6 +29,9 @@ class CourseDocsifyWriter
     // in a site of several courses, the course's folder in Docsify, e.g. 'cpt363-basic/': links between pages start at
     // the site's top, so they start with it ('' for a course on its own)
     private string $top = '';
+    // the card lists' line limit, from the Modules page's Description Line Limit: ' card-lines-2' (as Grav's default),
+    // ' card-lines-3', or '' for no limit
+    private string $cardLines = '';
 
     public function write(Site $site, string $pagesDir, string $out, string $siteUrl = '', string $top = ''): void
     {
@@ -41,6 +44,8 @@ class CourseDocsifyWriter
         $this->copiedImages = [];
         $modulesPage = $site->modulesPage;
         $this->course = '/' . Helpers::slugFromFolder($site->courseFolder);
+        $lineLimits = [0 => '', 2 => ' card-lines-2', 3 => ' card-lines-3'];
+        $this->cardLines = $lineLimits[(int)($modulesPage->meta['card_description_lines'] ?? 2)] ?? ' card-lines-2';
 
         // every page's address first, so links between them are converted. The Modules page gets a page of its own
         // only when it has module cards worth showing (see hasModuleCards()); otherwise links to it go to the course home.
@@ -153,7 +158,7 @@ class CourseDocsifyWriter
         // the module's pages, after its text, as Grav lists them: a card each, with its description
         $cards = $this->modulePageCards($module);
         if (count($cards) > 0) {
-            $lines = array_merge($lines, ['', ''], Helpers::generated(array_merge(['<div class="card-list-rows">', ''], $cards, ['</div>'])));
+            $lines = array_merge($lines, ['', ''], Helpers::generated(array_merge(['<div class="card-list-rows' . $this->cardLines . '">', ''], $cards, ['</div>'])));
         }
         $this->writeFile($file, implode("\n", $lines));
     }
@@ -240,7 +245,7 @@ class CourseDocsifyWriter
         }
         $listClasses = [1 => 'card-list-rows', 2 => 'card-list', 3 => 'card-list-sections'];
         $listClass = $listClasses[(int)($modulesPage->meta['cards_per_row'] ?? 2)] ?? 'card-list';
-        $lines = array_merge([self::MODULES_PAGE_MARKER, ''], Helpers::generated(array_merge($head, ['', '<div class="' . $listClass . '">', ''], $cards, ['</div>'])));
+        $lines = array_merge([self::MODULES_PAGE_MARKER, ''], Helpers::generated(array_merge($head, ['', '<div class="' . $listClass . $this->cardLines . '">', ''], $cards, ['</div>'])));
         $this->writeFile($file, implode("\n", $lines));
     }
 
@@ -373,7 +378,7 @@ class CourseDocsifyWriter
             $cards[] = '';
         }
         if (count($cards) > 0) {
-            $sections[] = "\n\n" . implode("\n", Helpers::generated(array_merge(['<div class="card-list-rows">', ''], $cards, ['</div>'])));
+            $sections[] = "\n\n" . implode("\n", Helpers::generated(array_merge(['<div class="card-list-rows' . $this->cardLines . '">', ''], $cards, ['</div>'])));
         }
         $license = self::licenseLine($site);
         if (count($license) > 0) {

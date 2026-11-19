@@ -229,8 +229,9 @@ class Helpers
             // every note starts with "<!-- grav" or "<!-- /grav" (grav:, grav:gen, /grav:gen, grav-embed: …) and never
             // has --> inside, so each one ends at the first --> ((?!-->) stops a match running on into the next note)
             $note = '<!-- \/?grav(?:(?!-->).)*+-->';
-            // a note on lines of its own goes with its line break; one inside a line (such as [term]) goes on its own
-            $cleaner = preg_replace(['/^' . $note . '\n/ms', '/' . $note . '/s'], '', $text);
+            // a note on lines of its own (in a quote too: '> <!-- grav… -->') goes with its line break; one inside a line
+            // (such as [term]) goes on its own
+            $cleaner = preg_replace(['/^(?:>[ \t]?)*' . $note . '\n/ms', '/' . $note . '/s'], '', $text);
             // (null if a very long page is too much for PHP's pattern matching: the page is then left as it is)
             if ($cleaner !== null) {
                 file_put_contents($file->getPathname(), ltrim($cleaner, "\n"));
