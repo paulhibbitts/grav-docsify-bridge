@@ -552,7 +552,8 @@ class CourseDocsifyReader
         }
         $menuFiles = [];
         foreach ($this->navbar as $file => $label) {
-            if ($file !== 'contact.md' && !in_array($file, $moduleFiles, true)) {
+            // (modules.md is the Modules page itself, as the converter writes it, so it isn't a menu page)
+            if ($file !== 'contact.md' && $file !== 'modules.md' && !in_array($file, $moduleFiles, true)) {
                 $menuFiles[] = $file;
             }
         }
@@ -602,7 +603,7 @@ class CourseDocsifyReader
             $site->courseFooter = $this->newPage('footer', 'footer', 'default.md', ['title' => 'Footer', 'routable' => false, 'visible' => false]);
             $site->courseFooter->body = $this->toGravText($footer, $site->courseFooter, '_footer.md');
         }
-        $this->noteOtherPages(array_merge(['home.md', 'contact.md'], $moduleFiles, $menuFiles));
+        $this->noteOtherPages(array_merge(['home.md', 'contact.md', 'modules.md'], $moduleFiles, $menuFiles));
         Helpers::turnOnFootnotes($site);
         $this->notes = array_merge($this->notes, Helpers::docsifyWordingNotes($site));
         return $site;

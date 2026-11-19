@@ -212,6 +212,31 @@ class Helpers
         return $marked;
     }
 
+    // Removes the hidden notes for going back to Grav from every Markdown page in $folder, for cleaner pages.
+    // Keeps {docsify-ignore}, which Docsify itself reads.
+    public static function removeGravNotes(string $folder): void
+    {
+        if (!is_dir($folder)) {
+            return;
+        }
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($folder, \FilesystemIterator::SKIP_DOTS));
+        foreach ($files as $file) {
+            if (!str_ends_with($file->getFilename(), '.md')) {
+                continue;
+            }
+            $text = (string)file_get_contents($file->getPathname());
+            // every note starts with "<!-- grav" or "<!-- /grav" (grav:, grav:gen, /grav:gen, grav-embed: …) and never
+            // has --> inside, so each one ends at the first --> ((?!-->) stops a match running on into the next note)
+            $note = '<!-- \/?grav(?:(?!-->).)*+-->';
+            // a note on lines of its own goes with its line break; one inside a line (such as [term]) goes on its own
+            $cleaner = preg_replace(['/^' . $note . '\n/ms', '/' . $note . '/s'], '', $text);
+            // (null if a very long page is too much for PHP's pattern matching: the page is then left as it is)
+            if ($cleaner !== null) {
+                file_put_contents($file->getPathname(), ltrim($cleaner, "\n"));
+            }
+        }
+    }
+
     // Quotes each line for a Markdown callout or blockquote: 'text' → '> text', and an empty line → '>'
     public static function quoteLines(string $text): string
     {

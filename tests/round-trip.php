@@ -75,6 +75,19 @@ convert('course2docsify', "$work/kit-grav/01.my-course", "$work/kit-docsify");
 convert('course2grav', "$work/kit-docsify", "$work/kit-grav-again");
 $failed += report('Docsify course stays the same after another round trip', sameFiles("$work/kit-grav", "$work/kit-grav-again"));
 
+// 4b. Clean pages (the clean option): no hidden notes are left in any Docsify page
+convert('grav2docsify', "$work/guides", "$work/guides-clean", 'clean');
+convert('course2docsify', "$samples/01.cpt363-basic", "$work/course-clean", 'clean');
+$leftNotes = [];
+foreach (["$work/guides-clean", "$work/course-clean"] as $folder) {
+    foreach (filesIn($folder) as $file) {
+        if (str_ends_with($file, '.md') && preg_match('/<!-- \/?grav/', (string)file_get_contents("$folder/$file")) === 1) {
+            $leftNotes[] = "$file still has a hidden note";
+        }
+    }
+}
+$failed += report('Clean Docsify pages have no hidden notes', $leftNotes);
+
 // 5. A whole Open Course Space site → Docsify → Grav: its Courses page and both courses, file for file (the course
 // from test 2, and the kit's course from test 4)
 mkdir("$work/site/00.courses", 0700, true);

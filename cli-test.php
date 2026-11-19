@@ -6,6 +6,7 @@
 //   php cli-test.php course2grav <Docsify course folder> <output pages folder (the course folder goes inside)>
 //   php cli-test.php courses2docsify <Open Course Space pages folder> <output folder> [site=https://original-site]
 //   php cli-test.php courses2grav <Docsify site of several courses> <output pages folder>
+// Add clean to any of the *2docsify ones for pages without the hidden notes for going back to Grav.
 // The Docsify output works at the top of a repo shown by Docsify-This, or in a Starter Kit's docs/ folder.
 // only from the command line: on the web server it does nothing
 if (PHP_SAPI !== 'cli') {
@@ -19,7 +20,7 @@ use OPG\DocsifyWriter;
 use OPG\GravReader;
 use OPG\GravWriter;
 
-$usage = "Usage: php cli-test.php grav2docsify|docsify2grav|course2docsify|course2grav|courses2docsify|courses2grav <source folder> <output folder> [single] [site=https://original-site]\n";
+$usage = "Usage: php cli-test.php grav2docsify|docsify2grav|course2docsify|course2grav|courses2docsify|courses2grav <source folder> <output folder> [single] [clean] [site=https://original-site]\n";
 if (count($argv) < 4) {
     fwrite(STDERR, $usage);
     exit(1);
@@ -39,12 +40,22 @@ if (!is_dir($source)) {
 // the optional words after the folders
 $single = false;
 $siteUrl = '';
+$clean = false;
 for ($i = 4; $i < count($argv); $i++) {
     if ($argv[$i] === 'single') {
         $single = true;
+    } elseif ($argv[$i] === 'clean') {
+        $clean = true;
     } elseif (str_starts_with($argv[$i], 'site=')) {
         $siteUrl = substr($argv[$i], strlen('site='));
     }
+}
+
+// the notes are removed once the pages are written (each direction below ends the script on its own)
+if ($clean && str_ends_with($direction, '2docsify')) {
+    register_shutdown_function(function () use ($out) {
+        OPG\Helpers::removeGravNotes($out);
+    });
 }
 
 if ($direction === 'courses2docsify' || $direction === 'courses2grav') {

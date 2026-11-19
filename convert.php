@@ -146,9 +146,13 @@ function countFiles(string $dir, string $name): int
 }
 
 // A Docsify course (one course, laid out like the Docsify Open Course Starter Kit): its own sidebar lists module or
-// week pages (module-01.md, week-1), or its pages were converted from Open Course Space
+// week pages (module-01.md, week-1), or its pages were converted from Open Course Space (with their notes, or
+// without them: its Modules page, modules.md)
 function isDocsifyCourse(string $docsifyFolder): bool
 {
+    if (is_file($docsifyFolder . '/modules.md')) {
+        return true;
+    }
     $sidebar = $docsifyFolder . '/_sidebar.md';
     if (is_file($sidebar) && preg_match_all('/\]\((?:\.\/)?(?:module|week)-?[0-9]+(?:\.md)?\)/i', (string)file_get_contents($sidebar)) >= 2) {
         return true;
@@ -400,6 +404,8 @@ if (!$hasFile) {
 
 // the options
 $single = isset($_POST['single']) && $_POST['single'] !== '';
+// Docsify pages keep hidden notes for going back to Grav exactly only when asked; without them they're cleaner
+$keepNotes = isset($_POST['keep_notes']) && $_POST['keep_notes'] !== '';
 $siteUrl = '';
 if (isset($_POST['site_url'])) {
     $siteUrl = trim((string)$_POST['site_url']);
@@ -577,6 +583,9 @@ if ($repo !== null && $course === null) {
 }
 if ($course !== null && count($courses) === 0) {
     $courses = [$course];
+}
+if ($direction === 'docsify' && !$keepNotes) {
+    Helpers::removeGravNotes($work . '/out');
 }
 writeNotes($work . '/out/conversion-notes.txt', $guides, $warnings, $tips, $courses);
 
