@@ -212,7 +212,7 @@ function findDocsifyFolder(string $dir): string
 // listed instead of guides – a course's modules, or each course of several
 function writeNotes(string $file, array $guides, array $warnings, array $tips = [], array $courses = []): void
 {
-    $notes = ['Open Publishing Course Space Bridge – notes', ''];
+    $notes = ['Grav Docsify Bridge – notes', ''];
     if (count($courses) === 1) {
         $course = $courses[0];
         $notes[] = 'Course moved: ' . count($course->modulesPage->children) . ' modules and ' . count($course->coursePages) . ' menu pages';
@@ -324,7 +324,7 @@ function downloadGitHubZip(array $repo, string $target): void
     curl_setopt($download, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
     curl_setopt($download, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
     curl_setopt($download, CURLOPT_TIMEOUT, 120);
-    curl_setopt($download, CURLOPT_USERAGENT, 'Open Publishing Course Space Bridge');
+    curl_setopt($download, CURLOPT_USERAGENT, 'Grav Docsify Bridge');
     // stop a download that grows past the 200 MB limit
     curl_setopt($download, CURLOPT_NOPROGRESS, false);
     curl_setopt($download, CURLOPT_PROGRESSFUNCTION, 'stopLargeDownloads');
