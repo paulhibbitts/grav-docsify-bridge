@@ -46,7 +46,8 @@
   .pv-panel { display: none; border: 1px solid #d6d3d1; border-radius: 12px; overflow: hidden; background: #fff; }
   .pv-panel.open { display: block; }
   /* when the preview scrolls into view, it stops below the sticky page header */
-  .pv-panel { scroll-margin-top: 10rem; }
+  .pv-panel { scroll-margin-top: 1rem; }
+  @media (min-width: 768px) { .pv-panel { scroll-margin-top: 10rem; } } /* room for the header, pinned on wider screens */
   @media (prefers-color-scheme: dark) { .pv-panel { border-color: #44403c; background: #1e2023; } }
   .pv-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; flex-wrap: wrap; padding: 0.75rem 1rem; }
   .pv-panel-head .pv-label { font-size: 0.85rem; font-weight: 600; }
@@ -112,7 +113,7 @@
 </head>
 <body class="font-sans bg-stone-100 dark:bg-stone-900 text-stone-900 dark:text-stone-200 min-h-screen flex flex-col items-center">
 
-<header class="sticky top-0 z-20 w-full flex justify-center bg-stone-100/75 dark:bg-stone-900/75 backdrop-blur border-b border-stone-200 dark:border-stone-700">
+<header class="md:sticky md:top-0 z-20 w-full flex justify-center bg-stone-100/75 dark:bg-stone-900/75 backdrop-blur border-b border-stone-200 dark:border-stone-700">
   <div class="w-full max-w-[896px] px-4 pt-[22px] pb-4">
     <div class="max-w-[68ch] mx-auto">
       <nav class="mb-3 flex items-center flex-wrap gap-2" aria-label="Breadcrumb">
@@ -120,7 +121,7 @@
         <span aria-hidden="true" class="text-[14px] text-stone-400 dark:text-stone-600">/</span>
         <a href="https://grav-converters.hibbittsdesign.org/" class="text-[14px] text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300">Grav Converters</a>
       </nav>
-      <div class="flex items-center gap-3.5">
+      <div class="flex items-start gap-3.5">
         <div class="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-400" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4"/><path d="M3 8h14"/><path d="M17 12l4 4-4 4"/><path d="M21 16H7"/></svg></div>
         <div>
           <h1 class="text-2xl font-bold tracking-tight">Open Publishing Course Space Bridge <span class="inline-block text-[11px] leading-[1.3] font-semibold px-[7px] py-[3px] rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-400 align-middle ml-1 tracking-[0.02em]">v0.9.0 Beta</span></h1>
@@ -177,12 +178,8 @@
     <form id="repo-form">
       <label class="block text-[14px] font-medium text-stone-600 dark:text-stone-300 mb-1" for="repo-address">GitHub repo address</label>
       <input type="text" name="repo" id="repo-address" placeholder="https://github.com/your-name/your-guides" autocomplete="off" class="w-full px-3 py-2 text-[15px] border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-sky-500">
-      <span class="block text-[13px] text-stone-500 dark:text-stone-400 mt-1">A public repo. For a Starter Kit, its address is enough – the <code>docs/</code> folder is found. A docsify-this.net link to the site works too.</span>
+      <span class="block text-[13px] text-stone-500 dark:text-stone-400 mt-1 mb-5">A public repo. For a Starter Kit, its address is enough – the <code>docs/</code> folder is found. A docsify-this.net link to the site works too.</span>
 
-      <ol class="flex flex-col gap-2 my-5 list-none p-0">
-        <li class="flex items-start gap-3 text-[15px] text-stone-500 dark:text-stone-400"><div class="shrink-0 w-[22px] h-[22px] bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-400 rounded-full text-[13px] font-semibold flex items-center justify-center mt-px" aria-hidden="true">1</div><span>Select <strong>Move &amp; Download ZIP</strong>.</span></li>
-        <li class="flex items-start gap-3 text-[15px] text-stone-500 dark:text-stone-400"><div class="shrink-0 w-[22px] h-[22px] bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-400 rounded-full text-[13px] font-semibold flex items-center justify-center mt-px" aria-hidden="true">2</div><span>Put the unzipped <code>pages</code> folder in your Open Publishing Space site's <code>user</code> folder, keeping a copy of the old one – or, for courses, put the folders inside it in your Open Course Space site's <code>user/pages</code> folder.</span></li>
-      </ol>
 
       <div class="flex items-stretch gap-3 flex-wrap">
       <button type="submit" class="flex-1 min-w-[200px] py-[10px] text-[16px] font-medium bg-sky-700 dark:bg-sky-600 text-white border border-sky-800 dark:border-sky-500 rounded-lg cursor-pointer transition-colors duration-150 enabled:hover:bg-sky-800 disabled:opacity-40 disabled:cursor-default inline-flex items-center justify-center gap-2" id="repo-button" disabled>
@@ -194,6 +191,7 @@
           <span class="button-text">Preview sample pages</span>
         </button>
       </div>
+      <p class="text-[14px] text-stone-500 dark:text-stone-400 mt-4 leading-relaxed"><strong>Then:</strong> put the unzipped <code>pages</code> folder in your Open Publishing Space site's <code>user</code> folder, keeping a copy of the old one – or, for courses, put the folders inside it in your Open Course Space site's <code>user/pages</code> folder.</p>
     </form>
   </div>
 
@@ -256,6 +254,7 @@
           <span class="button-text">Preview sample pages</span>
         </button>
       </div>
+      <p class="text-[14px] text-stone-500 dark:text-stone-400 mt-4 leading-relaxed"><strong>Then:</strong> put the unzipped files in a GitHub repo to view them with <a href="https://docsify-this.net" class="tlink underline underline-offset-2">Docsify-This</a>, or in a Starter Kit's <code>docs/</code> folder.</p>
     </form>
   </div>
 
