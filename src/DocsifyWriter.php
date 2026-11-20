@@ -187,7 +187,7 @@ class DocsifyWriter
     }
 
     // A section's or page's Side Box (shown beside its text in Grav) as a NOTE at the end of the page, as on the
-    // hand-built Read, Move, Reuse site; [] when it has none
+    // hand-built Share, Move, Reuse site; [] when it has none
     private function sideBox(Page $page, string $gravPath, string $where): array
     {
         $sideBox = $page->setting('side_box');
