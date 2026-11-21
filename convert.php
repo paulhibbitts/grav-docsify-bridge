@@ -521,6 +521,18 @@ if ($repo !== null) {
     if (count($footers) > 0) {
         $tips[] = 'to show the course footer (_footer.md), add &loadFooter=_footer.md to the Docsify-This link';
     }
+    // Open Course Space updates a course home's This Week section by date; a Docsify page can't, so it stays as moved
+    $thisWeek = false;
+    foreach (array_merge(glob($work . '/out/home.md'), glob($work . '/out/*/home.md')) as $home) {
+        if (stripos(file_get_contents($home), 'This Week') !== false) {
+            $thisWeek = true;
+        }
+    }
+    if ($thisWeek) {
+        $tips[] = '"What\'s Happening This Week" and the reminders on a course home page are moved as they are today. Docsify '
+            . 'doesn\'t update them by date, so edit the course\'s home.md as the term goes on – or rename the section, for '
+            . 'example to "Coming Up"';
+    }
 }
 
 if ($repo !== null && $course === null) {
