@@ -8,6 +8,9 @@ class DocsifyWriter
     // A page outside the reading order hides the sidebar with this line, at the end of the page
     public const HIDE_SIDEBAR = '<style>aside.sidebar, button.sidebar-toggle { display: none !important; } section.content { left: 0 !important; transition: none !important; }</style>';
 
+    // The Guides page's subtitle, larger and grey as in Grav (70% of the text colour passes WCAG AA contrast)
+    public const SUBTITLE_STYLE = '.markdown-section > h1 + p { font-size: 1.2em; color: color-mix(in srgb, var(--color-mono-max) 70%, transparent); }';
+
     // Links that only work on the Grav site, and anything else worth checking (for bridge-notes.txt)
     public array $warnings = [];
 
@@ -511,20 +514,23 @@ class DocsifyWriter
         if ($page->setting('cards_per_row') === '3') {
             $cardList = 'card-list card-list-guides';
         }
-        // search lives in each guide's sidebar, which the Guides page and guide homes hide
-        $searchAndCards = array_merge(
-            ['Each guide has its own search box, on its reading pages.', '', '<div class="' . $cardList . '">', ''],
-            $cards,
-            ['</div>']
-        );
-        $lines = array_merge($lines, Helpers::generated($searchAndCards), ['']);
+        $cardLines = array_merge(['<div class="' . $cardList . '">', ''], $cards, ['</div>']);
+        $lines = array_merge($lines, Helpers::generated($cardLines), ['']);
         if (trim($textParts['below']) !== '') {
             $lines[] = '<!-- grav:=== -->';
             $lines[] = '';
             $lines[] = trim($this->convert($textParts['below'], $gravPath, 'home.md'));
             $lines[] = '';
         }
-        $lines = array_merge($lines, Helpers::generated(['<!-- Hides the sidebar on this page -->', self::HIDE_SIDEBAR]));
+        // the subtitle (the line below the title) is shown larger and grey, as in Grav, with the same rule that hides
+        // the sidebar (reading the page back into Grav removes this whole line)
+        $styleComment = '<!-- Hides the sidebar on this page -->';
+        $styleLine = self::HIDE_SIDEBAR;
+        if ($page->setting('subtitle') !== '') {
+            $styleComment = '<!-- Hides the sidebar on this page, and shows the line below the title as a subtitle, as on the Grav version -->';
+            $styleLine = str_replace('</style>', ' ' . self::SUBTITLE_STYLE . '</style>', $styleLine);
+        }
+        $lines = array_merge($lines, Helpers::generated([$styleComment, $styleLine]));
         $this->writeFile('home.md', implode("\n", $lines));
     }
 

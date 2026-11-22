@@ -1111,7 +1111,8 @@ class DocsifyFirstReader
     {
         $text = str_replace("\r\n", "\n", $text);
         $hidesSidebar = preg_match('/^<style>aside\.sidebar.*<\/style>\s*$/m', $text) === 1;
-        $text = str_replace('<!-- Hides the sidebar on this page -->', '', $text);
+        // the comment above it, also in its longer form for a Guides page ("…, and shows the line below the title as a subtitle …")
+        $text = preg_replace('/<!-- Hides the sidebar on this page[^>]*-->/', '', $text);
         $text = preg_replace('/^<style>aside\.sidebar.*<\/style>\s*$/m', '', $text);
         if ($hidesSidebar && preg_match('/^\s*\*\*([^*\n]+)\*\*[ \t]*\n/', $text, $found) === 1) {
             $this->siteName = $found[1];
