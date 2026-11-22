@@ -8,6 +8,13 @@ class DocsifyWriter
     // A page outside the reading order hides the sidebar with this line, at the end of the page
     public const HIDE_SIDEBAR = '<style>aside.sidebar, button.sidebar-toggle { display: none !important; } section.content { left: 0 !important; transition: none !important; }</style>';
 
+    // Start Reading again after a guide's section cards, as Grav shows it (reading the page back into Grav removes it,
+    // as Grav adds its own)
+    public static function startReadingBelow(string $firstPage): string
+    {
+        return '**[Start Reading →](' . $firstPage . ')**';
+    }
+
     // The Guides page's subtitle, larger and grey as in Grav (70% of the text colour passes WCAG AA contrast)
     public const SUBTITLE_STYLE = '.markdown-section > h1 + p { font-size: 1.2em; color: color-mix(in srgb, var(--color-mono-max) 70%, transparent); }';
 
@@ -315,6 +322,10 @@ class DocsifyWriter
             $startAndCards = array_merge([$startReading, ''], $startAndCards);
         }
         $startAndCards = array_merge($startAndCards, $cards, $listEnd);
+        // Start Reading again after the cards, as a bold link with an arrow, as Grav shows it
+        if (count($sections) > 0) {
+            $startAndCards = array_merge($startAndCards, ['', self::startReadingBelow($firstPage)]);
+        }
         $lines = array_merge($lines, Helpers::generated($startAndCards), ['']);
 
         if (trim($textParts['below']) !== '') {

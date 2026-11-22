@@ -616,6 +616,14 @@ class DocsifyFirstReader
             $cardLines = array_slice($lines, $cardsStart + 1, $cardsEnd - $cardsStart - 1);
             $home['cards'] = $this->parseSectionCards($cardLines);
             $after = array_slice($lines, $cardsEnd + 1);
+            // Start Reading again after the cards isn't part of the author's text: Grav adds its own
+            foreach ($after as $n => $line) {
+                if (preg_match('/^\*\*\[Start Reading →\]\([^)]*\)\*\*$/u', trim($line)) === 1) {
+                    unset($after[$n]);
+                    break;
+                }
+            }
+            $after = array_values($after);
         }
         $below = $this->readFooter($after, $home);
 
