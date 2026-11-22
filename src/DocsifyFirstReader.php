@@ -590,7 +590,8 @@ class DocsifyFirstReader
             'attribution_text' => '', 'side_box' => '', 'cards' => [], 'text' => '', 'cover' => [], 'license' => null];
 
         $i = $this->skipBlankLines($lines, 0);
-        if (isset($lines[$i]) && trim($lines[$i]) === '<div class="guide-cover">') {
+        // (a portrait cover, such as a book's, adds guide-cover-portrait, which the bridge works out again from the image)
+        if (isset($lines[$i]) && preg_match('/^<div class="guide-cover( guide-cover-portrait)?">$/', trim($lines[$i])) === 1) {
             $coverEnd = $this->closingDiv($lines, $i);
             $this->readGuideCover(array_slice($lines, $i + 1, $coverEnd - $i - 1), $home);
             $i = $this->skipBlankLines($lines, $coverEnd + 1);

@@ -105,11 +105,15 @@ class DocsifyWriter
         $menuLinks = $this->writeMenuPages($guide, $top, $homeFile);
         $this->writeGuideHome($guide, $homeFile, $top, $sections);
         $this->writeSidebar($guide, $top, $sections);
-        if ($this->single) {
+        if ($this->single && count($menuLinks) > 0) {
             // the site's name first, linked home: Docsify-This shows it at the top of pages without a sidebar, and
             // on phones, where the sidebar starts closed
             $name = $guide->setting('menu') !== '' ? $guide->setting('menu') : $guide->title();
             $this->siteMenuLinks = array_merge(['- [' . $name . '](home.md ":class=site-title")'], $menuLinks);
+        } elseif ($this->single) {
+            // a single guide without menu pages has no navbar, as in the Docsify-This Guide Site template: the guide's
+            // name is on its home page's cover and above its sidebar, so a site title would only repeat it
+            $this->siteMenuLinks = ['<!-- No navbar: a single guide without menu pages (its name is on the cover and above the sidebar) -->'];
         } else {
             $navbar = array_merge(['- [All Guides](home.md)'], $menuLinks);
             $this->writeFile($guideSlug . '/_navbar.md', implode("\n", $navbar));
