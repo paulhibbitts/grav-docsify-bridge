@@ -112,8 +112,9 @@ class DocsifyWriter
             $this->siteMenuLinks = array_merge(['- [' . $name . '](home.md ":class=site-title")'], $menuLinks);
         } elseif ($this->single) {
             // a single guide without menu pages has no navbar, as in the Docsify-This Guide Site template: the guide's
-            // name is on its home page's cover and above its sidebar, so a site title would only repeat it
-            $this->siteMenuLinks = ['<!-- No navbar: a single guide without menu pages (its name is on the cover and above the sidebar) -->'];
+            // name is on its home page's cover and above its sidebar, so a site title would only repeat it. The file
+            // stays, but empty – Docsify-This then hides the navbar (even a comment in it would show an empty bar)
+            $this->siteMenuLinks = [];
         } else {
             $navbar = array_merge(['- [All Guides](home.md)'], $menuLinks);
             $this->writeFile($guideSlug . '/_navbar.md', implode("\n", $navbar));
