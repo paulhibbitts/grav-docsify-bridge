@@ -164,7 +164,7 @@
   </div>
   <div id="done-box" class="max-w-[68ch] mx-auto rounded-lg px-[14px] py-[10px] text-[15px] mb-4 bg-sky-50 dark:bg-sky-950 border border-sky-200 dark:border-sky-900 text-sky-800 dark:text-sky-300" style="display:none" role="status" aria-live="polite"></div>
 
-  <!-- Docsify to Grav: from a GitHub repo -->
+  <!-- Docsify to Grav: from a GitHub or Codeberg repo -->
   <div class="max-w-[68ch] mx-auto bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl p-6 mb-4 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.08)]">
     <div class="flex flex-wrap items-center gap-2 mb-2 text-[12px] font-mono" aria-hidden="true">
       <span class="chip-docsify rounded-full px-2.5 py-1 font-semibold">Docsify</span>
@@ -172,12 +172,12 @@
       <span class="chip-grav rounded-full px-2.5 py-1 font-semibold">Grav</span>
     </div>
     <h2 class="text-[17px] font-semibold mb-1">Docsify to Grav</h2>
-    <p class="text-[15px] text-stone-500 dark:text-stone-400 mb-5">Enter the GitHub repo of a Docsify-This or Docsify Starter Kit guide site or course, and get a <code>pages</code> folder for an Open Publishing Space site, or a course's folder (or its Courses page and courses) for an Open Course Space site.</p>
+    <p class="text-[15px] text-stone-500 dark:text-stone-400 mb-5">Enter the GitHub or Codeberg repo of a Docsify-This or Docsify Starter Kit guide site or course, and get a <code>pages</code> folder for an Open Publishing Space site, or a course's folder (or its Courses page and courses) for an Open Course Space site.</p>
 
     <form id="repo-form">
-      <label class="block text-[14px] font-medium text-stone-600 dark:text-stone-300 mb-1" for="repo-address">GitHub repo address</label>
+      <label class="block text-[14px] font-medium text-stone-600 dark:text-stone-300 mb-1" for="repo-address">GitHub or Codeberg repo address</label>
       <input type="text" name="repo" id="repo-address" placeholder="https://github.com/your-name/your-guides" autocomplete="off" class="w-full px-3 py-2 text-[15px] border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-sky-500">
-      <span class="block text-[13px] text-stone-500 dark:text-stone-400 mt-1 mb-5">A public repo. For a Starter Kit, its address is enough – the <code>docs/</code> folder is found. A docsify-this.net link to the site works too.</span>
+      <span class="block text-[13px] text-stone-500 dark:text-stone-400 mt-1 mb-5">A public repo on GitHub or Codeberg, such as https://codeberg.org/your-name/your-guides. For a Starter Kit, its address is enough – the <code>docs/</code> folder is found. A docsify-this.net link to the site works too.</span>
 
 
       <div class="flex items-stretch gap-3 flex-wrap">
@@ -253,7 +253,7 @@
           <span class="button-text">Preview sample pages</span>
         </button>
       </div>
-      <p class="text-[14px] text-stone-500 dark:text-stone-400 mt-4 leading-relaxed"><strong>Then:</strong> put the unzipped files in a GitHub repo to view them with <a href="https://docsify-this.net" class="tlink underline underline-offset-2">Docsify-This</a>, or in a Starter Kit's <code>docs/</code> folder.</p>
+      <p class="text-[14px] text-stone-500 dark:text-stone-400 mt-4 leading-relaxed"><strong>Then:</strong> put the unzipped files in a GitHub or Codeberg repo to view them with <a href="https://docsify-this.net" class="tlink underline underline-offset-2">Docsify-This</a>, or in a Starter Kit's <code>docs/</code> folder.</p>
     </form>
   </div>
 
@@ -282,7 +282,7 @@
     <details class="mt-2 mb-4">
       <summary class="text-[14px] text-stone-500 dark:text-stone-400 cursor-pointer select-none hover:text-stone-600 dark:hover:text-stone-300">What exactly does this do?</summary>
       <div class="mt-3 text-[14px] text-stone-500 dark:text-stone-400 leading-[1.7] flex flex-col gap-2">
-        <p><strong>Docsify to Grav:</strong> the repo is downloaded from GitHub. Each guide's sidebar gives its sections and pages, in order; its pages give their titles, section numbers and Learning Objectives; and the guide home and Guides page give the cards, the Side Box and the authors line. The result is an Open Publishing Space <code>pages</code> folder: a Guides List page, and for each guide a Section List page with numbered section and page folders. Settings only Grav has get the Open Publishing Space defaults. Callouts become shortcodes where their type and heading match one; others stay as callouts, which Open Publishing Space also shows. Pages this bridge made go back exactly as they were.</p>
+        <p><strong>Docsify to Grav:</strong> the repo is downloaded from GitHub or Codeberg. Each guide's sidebar gives its sections and pages, in order; its pages give their titles, section numbers and Learning Objectives; and the guide home and Guides page give the cards, the Side Box and the authors line. The result is an Open Publishing Space <code>pages</code> folder: a Guides List page, and for each guide a Section List page with numbered section and page folders. Settings only Grav has get the Open Publishing Space defaults. Callouts become shortcodes where their type and heading match one; others stay as callouts, which Open Publishing Space also shows. Pages this bridge made go back exactly as they were.</p>
         <p><strong>Courses:</strong> a course's modules (or weekly units) become Docsify pages laid out like the <a href="https://github.com/hibbitts-design/docsify-open-course-starter-kit" class="underline underline-offset-2">Docsify Open Course Starter Kit</a> and shown like the course in Open Course Space – the course's header image and name at the top of the home page, with its announcement, the modules and LMS links in the sidebar, and the menu pages and Contact in the navbar. The way back gives an Open Course Space course folder: a module for each sidebar link (module pages not in the sidebar become hidden modules), a menu page for each navbar link, and the sidebar from the Contact page and LMS links. Slides, videos and other embeds become Open Course Space's shortcodes, and a banner at the top of the home page becomes the course's header image. A whole Open Course Space site becomes a Docsify site with a folder for each published course and the Courses page as its home page, with a card for each course – and goes back the same way. A Docsify site of several courses made by hand, like the <a href="https://github.com/hibbitts-design/docsify-this-courses-site" class="underline underline-offset-2">Docsify-This Courses Site Template</a>, works too: each card on its home page becomes a course. Courses this bridge made go back exactly as they were.</p>
         <p><strong>Grav to Docsify:</strong> each guide becomes a folder with its home page, a folder per section with its pages, a <code>_sidebar.md</code> with the reading order (which also sets Previous/Next) and a <code>_navbar.md</code>. The Guides List page becomes <code>home.md</code>, with a card for each guide. Callout shortcodes such as <code>[reflection]</code> become Docsify callouts, Learning Objectives appear at the top of each section, links between pages are adjusted, and images are copied beside their pages. With "Keep notes for moving back to Grav", each page also gets a hidden note with its original Grav settings, which Docsify doesn't show.</p>
         <p>Guides and courses that are switched off, and blog posts or other pages, aren't moved. Your own text is otherwise left as it is. A <code>bridge-notes.txt</code> in each zip lists what was moved and anything to check.</p>

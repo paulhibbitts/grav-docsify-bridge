@@ -1,5 +1,5 @@
 <?php
-// Converts guides and sends back a zip: a Docsify guide site in a GitHub repo becomes Open Publishing Space pages,
+// Converts guides and sends back a zip: a Docsify guide site in a GitHub or Codeberg repo becomes Open Publishing Space pages,
 // and an uploaded zip of Open Publishing Space pages becomes Docsify pages.
 // Errors come back as plain text (with an error status), which the upload page shows.
 require_once __DIR__ . '/vendor/autoload.php';
@@ -262,12 +262,16 @@ function zipFolder(string $dir, string $zipFile): void
     $zip->close();
 }
 
-// Reads a GitHub address into its parts, or returns null when it isn't one. Accepts
-//   https://github.com/owner/repo                       (the repo's default branch)
-//   https://github.com/owner/repo/tree/main/docs        (a branch, and a folder in it)
+// Reads a GitHub or Codeberg repo address into its parts, or returns null when it isn't one. Accepts
+//   https://github.com/owner/repo                             (the repo's default branch)
+//   https://github.com/owner/repo/tree/main/docs              (a branch, and a folder in it)
 //   https://raw.githubusercontent.com/owner/repo/main/docs
+//   https://codeberg.org/owner/repo                           (the repo's default branch)
+//   https://codeberg.org/owner/repo/src/branch/main/docs      (a branch, and a folder in it)
+//   https://raw.codeberg.page/owner/repo/docs                 (or .../owner/repo/@main/docs)
 //   a docsify-this.net link, whose basePath is one of the addresses above
-function parseGitHubAddress(string $address): ?array
+// Example: https://codeberg.org/me/guides → ['host' => 'codeberg', 'owner' => 'me', 'repo' => 'guides', 'branch' => '', 'folder' => '']
+function parseRepoAddress(string $address): ?array
 {
     $address = trim($address);
     // a docsify-this.net link: the repo is in its basePath
@@ -279,41 +283,56 @@ function parseGitHubAddress(string $address): ?array
         }
     }
 
-    // owner and repo names only use letters, numbers, - _ and .
+    // owner, repo and branch names only use letters, numbers, - _ and .
     $name = '[A-Za-z0-9_.-]+';
+
+    // GitHub
     if (preg_match('#^https?://github\.com/(' . $name . ')/(' . $name . ')(?:/tree/(' . $name . ')(/[^?\#]*)?)?/?$#', $address, $found) === 1) {
-        $branch = '';
-        $folder = '';
-        if (isset($found[3])) {
-            $branch = $found[3];
-        }
-        if (isset($found[4])) {
-            $folder = $found[4];
-        }
-        return ['owner' => $found[1], 'repo' => preg_replace('/\.git$/', '', $found[2]), 'branch' => $branch, 'folder' => trim($folder, '/')];
+        $branch = $found[3] ?? '';
+        $folder = $found[4] ?? '';
+        return ['host' => 'github', 'owner' => $found[1], 'repo' => preg_replace('/\.git$/', '', $found[2]), 'branch' => $branch, 'folder' => trim($folder, '/')];
     }
     if (preg_match('#^https?://raw\.githubusercontent\.com/(' . $name . ')/(' . $name . ')/(' . $name . ')(/[^?\#]*)?/?$#', $address, $found) === 1) {
-        $folder = '';
-        if (isset($found[4])) {
-            $folder = $found[4];
-        }
-        return ['owner' => $found[1], 'repo' => $found[2], 'branch' => $found[3], 'folder' => trim($folder, '/')];
+        $folder = $found[4] ?? '';
+        return ['host' => 'github', 'owner' => $found[1], 'repo' => $found[2], 'branch' => $found[3], 'folder' => trim($folder, '/')];
+    }
+
+    // Codeberg
+    if (preg_match('#^https?://codeberg\.org/(' . $name . ')/(' . $name . ')(?:/src/branch/(' . $name . ')(/[^?\#]*)?)?/?$#', $address, $found) === 1) {
+        $branch = $found[3] ?? '';
+        $folder = $found[4] ?? '';
+        return ['host' => 'codeberg', 'owner' => $found[1], 'repo' => preg_replace('/\.git$/', '', $found[2]), 'branch' => $branch, 'folder' => trim($folder, '/')];
+    }
+    // raw.codeberg.page: an optional @branch comes right after the repo, otherwise it's the default branch
+    if (preg_match('#^https?://raw\.codeberg\.page/(' . $name . ')/(' . $name . ')(?:/@(' . $name . '))?(/[^?\#]*)?/?$#', $address, $found) === 1) {
+        $branch = $found[3] ?? '';
+        $folder = $found[4] ?? '';
+        return ['host' => 'codeberg', 'owner' => $found[1], 'repo' => $found[2], 'branch' => $branch, 'folder' => trim($folder, '/')];
     }
     return null;
 }
 
-// Downloads a GitHub repo as a zip (only ever from GitHub, at an address built here, never one sent in)
-function downloadGitHubZip(array $repo, string $target): void
+// Downloads a GitHub or Codeberg repo as a zip (only ever from github.com or codeberg.org, at an address built
+// here, never one sent in)
+function downloadRepoZip(array $repo, string $target): void
 {
-    if (!function_exists('curl_init')) {
-        fail('This server can\'t download from GitHub. Download the repo as a zip on GitHub (Code → Download ZIP) and upload that instead.');
+    $hostName = 'GitHub';
+    if ($repo['host'] === 'codeberg') {
+        $hostName = 'Codeberg';
     }
-    // HEAD is the repo's default branch
+    if (!function_exists('curl_init')) {
+        fail('This server can\'t download from ' . $hostName . '. Download the repo as a zip on ' . $hostName . ' and upload that instead.');
+    }
+    // HEAD is the repo's default branch (on both GitHub and Codeberg)
     $branch = $repo['branch'];
     if ($branch === '') {
         $branch = 'HEAD';
     }
-    $url = 'https://github.com/' . rawurlencode($repo['owner']) . '/' . rawurlencode($repo['repo']) . '/archive/' . rawurlencode($branch) . '.zip';
+    $site = 'https://github.com/';
+    if ($repo['host'] === 'codeberg') {
+        $site = 'https://codeberg.org/';
+    }
+    $url = $site . rawurlencode($repo['owner']) . '/' . rawurlencode($repo['repo']) . '/archive/' . rawurlencode($branch) . '.zip';
 
     $file = fopen($target, 'w');
     $download = curl_init($url);
@@ -337,7 +356,7 @@ function downloadGitHubZip(array $repo, string $target): void
         fail('That repo is larger than the 200 MB limit.');
     }
     if ($finished === false || $status !== 200) {
-        fail('That repo couldn\'t be downloaded from GitHub. Check the address, and that the repo is public.');
+        fail('That repo couldn\'t be downloaded from ' . $hostName . '. Check the address, and that the repo is public.');
     }
 }
 
@@ -366,7 +385,7 @@ if (isset($_SERVER['CONTENT_LENGTH'])) {
 if (count($_FILES) === 0 && count($_POST) === 0 && $uploadSize > 0) {
     fail('The server rejected the upload – the file is probably larger than its limit (' . ini_get('post_max_size') . ').');
 }
-// either a zip file or a GitHub repo address
+// either a zip file or a GitHub or Codeberg repo address
 $repoAddress = '';
 if (isset($_POST['repo'])) {
     $repoAddress = trim((string)$_POST['repo']);
@@ -375,11 +394,11 @@ $hasFile = isset($_FILES['site']) && $_FILES['site']['error'] !== UPLOAD_ERR_NO_
 $repo = null;
 if (!$hasFile) {
     if ($repoAddress === '') {
-        fail('Choose a zip file, or enter a GitHub repo address.');
+        fail('Choose a zip file, or enter a GitHub or Codeberg repo address.');
     }
-    $repo = parseGitHubAddress($repoAddress);
+    $repo = parseRepoAddress($repoAddress);
     if ($repo === null) {
-        fail('That isn\'t a GitHub repo address. It should look like https://github.com/your-name/your-repo');
+        fail('That isn\'t a GitHub or Codeberg repo address. It should look like https://github.com/your-name/your-repo or https://codeberg.org/your-name/your-repo');
     }
 } else {
     $upload = $_FILES['site'];
@@ -424,9 +443,9 @@ register_shutdown_function('removeFolder', $work);
 
 $searchFolder = $work . '/in';
 if ($repo !== null) {
-    downloadGitHubZip($repo, $work . '/repo.zip');
+    downloadRepoZip($repo, $work . '/repo.zip');
     unzipPages($work . '/repo.zip', $work . '/in');
-    // GitHub's zip holds one folder (repo-branch); a folder in the address (such as docs) is inside it
+    // the zip holds one folder (repo-branch on GitHub, repo on Codeberg); a folder in the address (such as docs) is inside it
     $topFolders = glob($work . '/in/*', GLOB_ONLYDIR);
     if (count($topFolders) === 1 && $repo['folder'] !== '') {
         $searchFolder = $topFolders[0] . '/' . $repo['folder'];
@@ -567,7 +586,7 @@ if ($repo !== null && $course === null) {
     $pagesFolder = findPagesFolder($searchFolder);
     if ($pagesFolder === '') {
         if (findDocsifyFolder($searchFolder) !== '') {
-            fail('That zip has a Docsify site, not Grav pages. To move it to Grav, enter its GitHub repo address under "Docsify to Grav".');
+            fail('That zip has a Docsify site, not Grav pages. To move it to Grav, enter its GitHub or Codeberg repo address under "Docsify to Grav".');
         }
         fail('No Open Publishing Space guides or Open Course Space course were found in that zip. Zip your site\'s user/pages folder for guides (each guide is a folder with a section-list.md or guide.md page), or a course\'s own folder (with its course.md)');
     }
