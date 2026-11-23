@@ -748,7 +748,7 @@ class DocsifyFirstReader
                     $card['file'] = $this->docsifyFile($found[1]);
                     $card['title'] = strip_tags($found[2]);
                 } elseif (preg_match('/^## \[(.+?)\]\(([^)\s]+)\)/', $line, $found) === 1) {
-                    // the title as a Markdown link (which works on GitHub too): ## [Title](section/README.md)
+                    // the title as a Markdown link (which works on GitHub too): ## [Title](/guide/section/README.md)
                     $card['file'] = $this->docsifyFile(preg_replace('/\.md$/', '', $found[2]));
                     $card['title'] = strip_tags($found[1]);
                 } elseif (preg_match('/^(?:<small>)?(.+?) (\d+)(?: of \d+)?(?:<\/small>)?$/', $line, $found) === 1 && !isset($card['file'])) {
@@ -1089,6 +1089,8 @@ class DocsifyFirstReader
     // $match: [whole link end, the Docsify file, ?id=heading, an option such as ':target=_blank']
     private function linkToGravAddress(array $match): string
     {
+        // a link from the site's top may start with / (so it also works on GitHub)
+        $match[1] = ltrim($match[1], '/');
         if (!isset($this->gravAddresses[$match[1]])) {
             return $match[0];
         }
@@ -1171,7 +1173,8 @@ class DocsifyFirstReader
     // 'guide/section/README' (from a card link) → 'guide/section/README.md'; 'guide/why-it-matters' → 'guide/why-it-matters.md'
     private function docsifyFile(string $route): string
     {
-        return $route . '.md';
+        // a link from the site's top may start with / (so it also works on GitHub)
+        return ltrim($route, '/') . '.md';
     }
 
     // A section's folder name: its own folder's name ('guide/section/README.md' → 'section'), or for a group of

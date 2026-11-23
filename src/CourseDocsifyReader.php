@@ -712,7 +712,8 @@ class CourseDocsifyReader
         $cards = [];
         preg_match_all('/<div class="card">\s*\n(.*?)\n<\/div>/s', $text, $found);
         foreach ($found[1] as $card) {
-            // '## [Expectations](home-expectations.md) …', or in a site of several courses '<h2><a href="#/course/home-x">'
+            // '## [Expectations](home-expectations.md) …', or in a site of several courses '## [Expectations](/course/home-expectations.md)'
+            // (or Docsify's own link, '<h2><a href="#/course/home-x">', as written before)
             if (preg_match('/^## \[([^\]]+)\]\((?:[^)\s]*\/)?([a-z0-9-]+)\.md\)|<h2><a href="#\/(?:[^"]*\/)?([a-z0-9-]+)">([^<]+)<\/a>/m', $card, $link) !== 1) {
                 continue;
             }
@@ -756,7 +757,8 @@ class CourseDocsifyReader
             return $text;
         }
         return preg_replace_callback('/\n*<div class="card-list[^"]*">\n.*?\n<\/div>\n(?:\s*\n)*<\/div>\s*/s', function ($match) use ($files) {
-            preg_match_all('/(?:\]\(|href="#\/(?:[^"]*\/)?)([a-z0-9-]+)(?:\.md)?[)"]/', $match[0], $links);
+            // ](page.md), ](/course/page.md) or href="#/course/page"
+            preg_match_all('/(?:\]\(\/?(?:[a-z0-9_-]+\/)?|href="#\/(?:[^"]*\/)?)([a-z0-9-]+)(?:\.md)?[)"]/', $match[0], $links);
             foreach ($links[1] as $link) {
                 if (!in_array($link . '.md', $files, true)) {
                     return $match[0];

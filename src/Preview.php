@@ -49,9 +49,10 @@ class Preview
         if ($direction === 'grav') {
             $coursesPage = $this->firstMatch('pages/*/course-list.md');
         }
-        // (in Docsify, each course is in a folder of its own: the first card's, as in <a href="#/cpt363-basic/home">)
+        // (in Docsify, each course is in a folder of its own: the first card's, as in ](cpt363-basic/home.md) or
+        // <a href="#/cpt363-basic/home">)
         $folder = '';
-        if ($direction === 'docsify' && preg_match('/<a href="#\/([A-Za-z0-9_-]+)\/home">/', $this->fileText('home.md'), $found) === 1) {
+        if ($direction === 'docsify' && preg_match('/(?:\]\(|<a href="#\/)([A-Za-z0-9_-]+)\/home(?:\.md\)|">)/', $this->fileText('home.md'), $found) === 1) {
             $folder = $found[1] . '/';
         }
         $samples = array_merge(['Courses page' => $coursesPage], $this->courseSamples($direction, $folder));

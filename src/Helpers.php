@@ -171,9 +171,8 @@ class Helpers
     // $linkImage: false for a decorative image (empty alt text, no link), so the card has one link, its title, and a
     // screen reader doesn't announce the same link twice
     // $page: the Docsify page, e.g. 'cpt363-basic/home'; $image: its address from the site's top
-    // $markdownTitle: the title as a Markdown heading link to the page's file, which also works when browsing the files
-    // on GitHub (course cards; guide cards keep the HTML link, so their titles stay out of the sidebar and search)
-    public static function card(string $page, string $title, string $image, string $alt, array $text, string $badge = '', bool $markdownTitle = false, bool $linkImage = true): array
+    // $atTop: the card is on a page at the site's top (a Guides or Courses page), so its links don't start with /
+    public static function card(string $page, string $title, string $image, string $alt, array $text, string $badge = '', bool $atTop = false, bool $linkImage = true): array
     {
         $card = ['<div class="card">', ''];
         if ($image !== '' && $linkImage) {
@@ -185,7 +184,7 @@ class Helpers
             $card[] = '![' . ($alt !== $title ? $alt : '') . '](' . $image . ' ":no-zoom")';
             $card[] = '';
         }
-        $card[] = self::cardTitle($page, $title, $markdownTitle, $badge);
+        $card[] = self::cardTitle($page, $title, $atTop, $badge);
         $card[] = '';
         foreach ($text as $line) {
             $card[] = $line;
@@ -196,16 +195,21 @@ class Helpers
         return $card;
     }
 
-    // A card's title linked to its page. On a page at the site's top, a Markdown link to the .md file, which works in
-    // Docsify and on GitHub ({docsify-ignore} keeps it out of the sidebar); on a page in a folder, Docsify's own link,
-    // as GitHub would read a path from the top as starting in that folder.
+    // A card's title as a Markdown link to the page's .md file, which works in Docsify and when browsing the files on
+    // GitHub ({docsify-ignore} keeps it out of the sidebar and search). $atTop: the card is on a page at the site's
+    // top; on a page in a folder the link starts with /, as GitHub would otherwise start from that folder.
     // Example: ('cpt363-basic/home', 'CPT363-1', true) → ## [CPT363-1](cpt363-basic/home.md) <!-- {docsify-ignore} -->
     public static function cardTitle(string $page, string $title, bool $atTop, string $badge = ''): string
     {
-        if ($atTop) {
-            return '## [' . $title . '](' . $page . '.md)' . $badge . ' <!-- {docsify-ignore} -->';
-        }
-        return '<h2><a href="#/' . $page . '">' . $title . '</a>' . $badge . '</h2>';
+        return '## [' . $title . '](' . self::fromFolder($page, !$atTop) . '.md)' . $badge . ' <!-- {docsify-ignore} -->';
+    }
+
+    // A link from the site's top on a page in a folder starts with /: Docsify reads it the same, and GitHub then
+    // starts from the repository's top, not from the page's folder
+    // Example: ('guide/README.md', true) → /guide/README.md
+    public static function fromFolder(string $link, bool $inFolder): string
+    {
+        return $inFolder ? '/' . $link : $link;
     }
 
     // Marks text the converter adds for Docsify (titles, cards, back links …), so it can be told apart from

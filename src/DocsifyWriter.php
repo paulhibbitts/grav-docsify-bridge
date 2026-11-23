@@ -81,7 +81,7 @@ class DocsifyWriter
         // (at the top of the sidebar) is the guide's name and already links home
         $backLink = [];
         if (!$this->single) {
-            $backLink = ['[← ' . $guide->title() . '](' . $homeFile . ')', ''];
+            $backLink = ['[← ' . $guide->title() . '](' . Helpers::fromFolder($homeFile, true) . ')', ''];
             $this->copyImages($guide, $guideSlug);
         } else {
             // a single guide's own folder only holds its cover, shown on its home page (home.md, at the top)
@@ -224,7 +224,7 @@ class DocsifyWriter
         foreach ($menuPages as $page) {
             $path = $top . $page->slug() . '.md';
             $body = trim($this->convert($page->body, '/' . $guide->slug() . '/' . $page->slug(), $path));
-            $head = ['[← ' . $guide->title() . '](' . $homeFile . ')'];
+            $head = ['[← ' . $guide->title() . '](' . Helpers::fromFolder($homeFile, !$this->single) . ')'];
             // the page's own text often starts with its title; if not, it's added
             if (!str_starts_with($body, '# ')) {
                 $head[] = '';
@@ -298,6 +298,8 @@ class DocsifyWriter
                 $firstPage = $top . $sections[0]['page']->slug() . '/' . $sections[0]['start']->slug() . '.md';
             }
         }
+        // a guide in its own folder: the link starts with /, so it also works on GitHub
+        $firstPage = Helpers::fromFolder($firstPage, !$this->single);
 
         // a single guide's home is the site's home page, so it also keeps the original site's address
         $noteExtra = [];
@@ -403,7 +405,7 @@ class DocsifyWriter
         $image = $section->setting('image');
         if ($image !== '') {
             // images are read from the page's own folder, links from the site's top
-            $card[] = '[![' . $section->title() . '](' . $section->slug() . '/' . $image . ' ":no-zoom")](' . $link . '.md)';
+            $card[] = '[![' . $section->title() . '](' . $section->slug() . '/' . $image . ' ":no-zoom")](' . Helpers::fromFolder($link, !$this->single) . '.md)';
             $card[] = '';
         } elseif ($parts['image']) {
             $card = array_merge($card, ['<p></p>', '']);
