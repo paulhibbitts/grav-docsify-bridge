@@ -1,6 +1,6 @@
 # Tools for Open Course Design
 
-<small>Section 2</small>
+Section 2
 
 > [!TIP]
 > **By the end of this section you will be able to**

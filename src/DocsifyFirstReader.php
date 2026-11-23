@@ -441,7 +441,11 @@ class DocsifyFirstReader
         $sectionSlug = $this->sectionSlug($entry);
         $sectionFolder = $guideFolder . '/' . sprintf('%02d', $number) . '.' . $sectionSlug;
         $section = new Page('section', $sectionFolder, 'section.md');
-        $parsed = $this->parsePage($this->readFile($entry['file']), $entry['title']);
+        $cardLabel = '';
+        if (isset($card['label'], $card['number'])) {
+            $cardLabel = $card['label'] . ' ' . $card['number'];
+        }
+        $parsed = $this->parsePage($this->readFile($entry['file']), $entry['title'], $cardLabel);
         if ($entry['group']) {
             // a sidebar group's name is the section's title (its first page may be called Overview)
             $parsed['title'] = $entry['title'];
@@ -543,9 +547,10 @@ class DocsifyFirstReader
 
     // ---- reading Docsify pages ----
 
-    // A reading page: [← back link], # Title, <small>Section 1</small>, a Learning Objectives callout, then the text.
+    // A reading page: [← back link], # Title, Section 1, a Learning Objectives callout, then the text.
+    // $cardLabel: the label on the section's card ('Section 1'), so a plain label line can be told from the page's text
     // Returns ['title', 'label', 'number', 'objectives', 'body'].
-    private function parsePage(string $text, string $titleFromSidebar): array
+    private function parsePage(string $text, string $titleFromSidebar, string $cardLabel = ''): array
     {
         $lines = explode("\n", $this->withoutHideSidebar($text));
         $result = ['title' => $titleFromSidebar, 'label' => '', 'number' => '', 'objectives' => '', 'body' => ''];
@@ -559,8 +564,13 @@ class DocsifyFirstReader
             $result['title'] = trim(substr($lines[$i], 2));
             $i = $this->skipBlankLines($lines, $i + 1);
         }
-        // the section label and number: <small>Section 1</small> or <small>Part 1 of 6</small>
-        if (isset($lines[$i]) && preg_match('/^<small>(.+?) (\d+)(?: of \d+)?<\/small>$/', $lines[$i], $found) === 1) {
+        // the section label and number: Section 1 (the same as on its card), or as written before,
+        // <small>Section 1</small> or <small>Part 1 of 6</small>
+        $isLabel = isset($lines[$i]) && preg_match('/^<small>(.+?) (\d+)(?: of \d+)?<\/small>$/', $lines[$i], $found) === 1;
+        if (!$isLabel && $cardLabel !== '' && isset($lines[$i]) && trim($lines[$i]) === $cardLabel) {
+            $isLabel = preg_match('/^(.+?) (\d+)$/', trim($lines[$i]), $found) === 1;
+        }
+        if ($isLabel) {
             $result['label'] = $found[1];
             $result['number'] = $found[2];
             $i = $this->skipBlankLines($lines, $i + 1);

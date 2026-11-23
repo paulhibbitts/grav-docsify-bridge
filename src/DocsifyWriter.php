@@ -174,7 +174,8 @@ class DocsifyWriter
         $sectionFile = $sectionFolder . '/README.md';
         $head = array_merge($backLink, ['# ' . $section->title()]);
         if ($label !== '') {
-            $head = array_merge($head, ['', '<small>' . $label . '</small>']);
+            // at full size, as in the Docsify-This templates and the Starter Kits
+            $head = array_merge($head, ['', $label]);
         }
         $body = $this->convert($section->body, '/' . $guideSlug . '/' . $section->slug(), $sectionFile);
         $objectives = $section->setting('learning_objectives');
