@@ -404,8 +404,9 @@ class DocsifyWriter
         $card = ['<div class="card">', ''];
         $image = $section->setting('image');
         if ($image !== '') {
-            // images are read from the page's own folder, links from the site's top
-            $card[] = '[![' . $section->title() . '](' . $section->slug() . '/' . $image . ' ":no-zoom")](' . Helpers::fromFolder($link, !$this->single) . '.md)';
+            // a decorative image (empty alt text, no link), read from the page's own folder: the card's one link is
+            // its title, which Docsify stretches over the whole card, so a screen reader announces it once
+            $card[] = '![](' . $section->slug() . '/' . $image . ' ":no-zoom")';
             $card[] = '';
         } elseif ($parts['image']) {
             $card = array_merge($card, ['<p></p>', '']);
