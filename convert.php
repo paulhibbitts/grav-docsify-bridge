@@ -349,7 +349,6 @@ function downloadRepoZip(array $repo, string $target): void
     curl_setopt($download, CURLOPT_PROGRESSFUNCTION, 'stopLargeDownloads');
     $finished = curl_exec($download);
     $status = curl_getinfo($download, CURLINFO_RESPONSE_CODE);
-    curl_close($download);
     fclose($file);
 
     if ($finished === false && filesize($target) > 200 * 1024 * 1024) {

@@ -660,7 +660,7 @@ class CourseDocsifyReader
         // a banner at the top: ![Alt text](images/photo.jpg ':class=banner-image')
         if (preg_match('/^\s*!\[[^\]]*\]\(([^)\s]+)\s+[\'"][^\'"]*:class=banner-image[^\'"]*[\'"]\)\s*\n/', $text, $found) === 1) {
             $site->headerImage = $this->newPage('headerimage', 'headerimage', 'default.md', ['title' => 'Header Image', 'visible' => false, 'routable' => false]);
-            if ($this->addImage($site->headerImage, $found[1], 'home.md')) {
+            if ($this->addImage($site->headerImage, str_replace('%20', ' ', $found[1]), 'home.md')) {
                 $text = substr($text, strlen($found[0]));
             } else {
                 $site->headerImage = null;
@@ -791,6 +791,7 @@ class CourseDocsifyReader
         // a banner at the top: ![Alt text](images/photo.jpg ':class=banner-image')
         if (isset($lines[$i]) && preg_match('/^!\[([^\]]*)\]\(([^)\s]+)\s+[\'"][^\'"]*:class=banner-image[^\'"]*[\'"]\)\s*$/', $lines[$i], $found) === 1) {
             $headerImage = $found;
+            $headerImage[2] = str_replace('%20', ' ', $headerImage[2]); // spaces in its file name
             $i = $this->skipBlankLines($lines, $i + 1);
         }
         // its credit: <small>Photo: [Name](https://link)</small>, or <small>Photo: Name</small>

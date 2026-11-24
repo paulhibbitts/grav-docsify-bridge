@@ -126,7 +126,7 @@ class CourseDocsifyWriter
         $headerImage = $this->headerImage($module);
         if ($headerImage !== '') {
             $head[] = '';
-            $head[] = '![' . $module->setting('header_image_alt_text') . '](' . $headerImage . ' \':class=banner-image\')';
+            $head[] = '![' . $module->setting('header_image_alt_text') . '](' . self::imageAddress($headerImage) . ' \':class=banner-image\')';
             if ($module->setting('header_image_credit') !== '') {
                 $credit = $module->setting('header_image_credit');
                 if ($module->setting('header_image_creditlink') !== '') {
@@ -481,7 +481,7 @@ class CourseDocsifyWriter
         $images = $headerImage->images;
         sort($images);
         $this->bannerImage = $this->copyImage($headerImage, $images[0]);
-        return ['![](' . $this->bannerImage . " ':class=banner-image')", ''];
+        return ['![](' . self::imageAddress($this->bannerImage) . " ':class=banner-image')", ''];
     }
 
     // A stretch of the home page's own text (often just the blank lines between its parts), converted
@@ -803,13 +803,19 @@ class CourseDocsifyWriter
     }
 
     // A course's card: its header image (already copied into the course's images/), name and description
+    // An image's address for Markdown: spaces become %20 (an address can't have spaces). Example: images/Main%20Banner.jpg
+    private static function imageAddress(string $path): string
+    {
+        return str_replace(' ', '%20', $path);
+    }
+
     private static function courseCard(Site $course, string $banner): array
     {
         $slug = Helpers::slugFromFolder($course->courseFolder);
         $title = $course->coursePage->title();
         $image = '';
         if ($banner !== '') {
-            $image = $slug . '/' . $banner;
+            $image = self::imageAddress($slug . '/' . $banner);
         }
         return Helpers::card($slug . '/home', $title, $image, $title, [$course->coursePage->setting('description')], '', true, false);
     }
