@@ -80,6 +80,28 @@ if (!str_contains($page, '<!-- grav: [term] -->a term not in the glossary<!-- gr
 }
 $failed += report('Glossary terms link to the Glossary page, with their definitions', $differences);
 
+// 1b4. The same guide moved without hidden notes (clean) and back: the Glossary page's list goes back into its
+//      settings, its terms become [term] again, and a term in other words gets its name back from its definition
+convert('grav2docsify', "$samples/grav-extras", "$work/extras-clean", 'single clean');
+convert('docsify2grav', "$work/extras-clean", "$work/extras-clean-back");
+$differences = [];
+$glossaryFiles = glob("$work/extras-clean-back/*/glossary/default.md");
+$glossaryPage = (string)file_get_contents($glossaryFiles[0] ?? '/dev/null');
+if (!str_contains($glossaryPage, "glossary:\n") || !str_contains($glossaryPage, 'term: OER')) {
+    $differences[] = 'the Glossary page has no glossary: settings';
+}
+if (!str_contains($glossaryPage, "\n[glossary]")) {
+    $differences[] = 'the Glossary page has no [glossary]';
+}
+$pageFiles = glob("$work/extras-clean-back/*/*links-and-images/section.md");
+$sectionPage = (string)file_get_contents($pageFiles[0] ?? '/dev/null');
+foreach (['[term]Markdown[/term]', '[term name="OER"]open resources[/term]'] as $term) {
+    if (!str_contains($sectionPage, $term)) {
+        $differences[] = $term . ' didn\'t come back';
+    }
+}
+$failed += report('A clean Glossary page and its terms come back to Grav', $differences);
+
 // 1c. The same guides with the newer page names (guide.md for each guide, guide-list.md for the Guides page):
 //     they come back with those names
 copyFolder("$work/guides", "$work/renamed");

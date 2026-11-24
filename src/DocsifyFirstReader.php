@@ -24,6 +24,8 @@ class DocsifyFirstReader
     private string $siteName = '';
     // folders holding a translation of the site (such as fr/), which aren't converted
     private array $translations = [];
+    // the guide being read: its glossary's definitions => terms (see findGlossaryTerms)
+    private array $glossaryTerms = [];
 
     public function read(string $dir): Site
     {
@@ -234,6 +236,8 @@ class DocsifyFirstReader
         }
         $guideFolder = sprintf('%02d', $number) . '.' . $slug;
         $guide = new Page('guide', $guideFolder, 'section-list.md');
+        // the guide's glossary first, so links to it in its pages can be told apart (see Glossary::linksToTerms)
+        $this->glossaryTerms = $this->findGlossaryTerms($base);
         $sidebar = $this->parseSidebar($this->readFile($base . '_sidebar.md'));
         // Grav shows a card for each section, so a list of the guide's pages on its home isn't needed
         $home['text'] = $this->withoutPageList($home['text'], $sidebar);
@@ -503,6 +507,27 @@ class DocsifyFirstReader
         return $section;
     }
 
+    // The guide's glossary, from the first page linked in its navbar that has a glossary list: each definition as a
+    // link's title => its term (empty when there's none)
+    private function findGlossaryTerms(string $base): array
+    {
+        $navbarFile = $this->single ? '_navbar.md' : $base . '_navbar.md';
+        if (!is_file($this->dir . '/' . $navbarFile)) {
+            return [];
+        }
+        foreach ($this->links((string)file_get_contents($this->dir . '/' . $navbarFile)) as $link) {
+            $file = $this->dir . '/' . $link['target'];
+            if (!is_file($file)) {
+                continue;
+            }
+            $glossary = Glossary::listToEntries((string)file_get_contents($file));
+            if (count($glossary['entries']) > 0) {
+                return Glossary::termsByDefinition($glossary['entries']);
+            }
+        }
+        return [];
+    }
+
     // Pages linked from the guide's navbar that aren't in its reading order (Topics, Resources …) become Grav
     // menu pages: unnumbered folders, in the navbar's order
     private function readMenuPages(string $base, string $guideFolder, array $sidebar): array
@@ -536,9 +561,14 @@ class DocsifyFirstReader
             $page = new Page('menu', $guideFolder . '/' . $this->slugFromDocsifyFile($file), 'default.md');
             // a menu page's text keeps its own title, as on the Grav site
             $parsed = $this->parsePage($this->readFile($file), $link['text']);
-            $page->body = $this->toGravText('# ' . $parsed['title'] . "\n\n" . $parsed['body']);
+            // a Glossary page's list goes back into its settings, with [glossary] where it was
+            $glossary = Glossary::listToEntries($parsed['body']);
+            $page->body = $this->toGravText('# ' . $parsed['title'] . "\n\n" . $glossary['body']);
             $this->addImages($page, $parsed['body'], $file);
             $page->meta = ['title' => $parsed['title'], 'menu_order' => $menuOrder];
+            if (count($glossary['entries']) > 0) {
+                $page->meta['glossary'] = $glossary['entries'];
+            }
             $page->yaml = $this->yaml($page->meta);
             $menuPages[] = $page;
         }
@@ -1076,7 +1106,7 @@ class DocsifyFirstReader
     {
         $codeParts = [];
         $markdown = Helpers::hideCode($markdown, $codeParts);
-        $markdown = Callouts::toGrav($markdown);
+        $markdown = Callouts::toGrav($markdown, $this->glossaryTerms);
         $markdown = Embeds::toGrav($markdown);
         $markdown = Embeds::iconsToGrav($markdown);
         $markdown = Embeds::iframesToGrav($markdown);

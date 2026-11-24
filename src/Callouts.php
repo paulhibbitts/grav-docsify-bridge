@@ -266,10 +266,11 @@ class Callouts
     // again. A callout without a note (from a site made in Docsify) becomes a shortcode when its type and heading
     // match one (> [!IMPORTANT] with **Example** → [example]); otherwise it stays a > [!TYPE] callout, which the
     // Open Publishing Space themes also show.
-    public static function toGrav(string $markdown): string
+    // $glossaryTerms: see Glossary::linksToTerms
+    public static function toGrav(string $markdown, array $glossaryTerms = []): string
     {
         // glossary links first, before their hidden notes become shortcodes below
-        $markdown = Glossary::linksToTerms($markdown);
+        $markdown = Glossary::linksToTerms($markdown, $glossaryTerms);
         $markdown = preg_replace_callback(
             '/<!-- grav: \[showifembedded\]\n(.*?)\n\[\/showifembedded\] -->/s',
             [self::class, 'showEmbeddedContent'],

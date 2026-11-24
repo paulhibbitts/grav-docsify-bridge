@@ -42,13 +42,69 @@ class Glossary
     }
 
     // Docsify → Grav: a link to a Glossary page with a title becomes [term]…[/term] again (the definition comes
-    // from the Glossary page, so the title isn't needed)
-    public static function linksToTerms(string $markdown): string
+    // from the Glossary page, so the title isn't needed).
+    // $termsByDefinition (definition as a title => term, see termsByDefinition) finds the term for a link shown in
+    // other words, such as "shortcodes" for Shortcode, when no hidden note kept its name
+    public static function linksToTerms(string $markdown, array $termsByDefinition = []): string
     {
-        $pattern = '/(?:<!-- grav: \[term( name="[^"]*")\] -->)?\[([^\]]+)\]\([^)\s]*glossary\.md "[^"]*"\)/';
-        return preg_replace_callback($pattern, function ($match) {
-            return '[term' . $match[1] . ']' . $match[2] . '[/term]';
+        $pattern = '/(?:<!-- grav: \[term( name="[^"]*")\] -->)?\[([^\]]+)\]\([^)\s]*glossary\.md "([^"]*)"\)/';
+        return preg_replace_callback($pattern, function ($match) use ($termsByDefinition) {
+            $nameAttribute = $match[1];
+            $text = $match[2];
+            $title = $match[3];
+            if ($nameAttribute === '' && isset($termsByDefinition[$title])) {
+                $term = $termsByDefinition[$title];
+                // Grav matches terms whatever their case, so a name is only needed when the words differ
+                if (mb_strtolower($term) !== mb_strtolower($text)) {
+                    $nameAttribute = ' name="' . $term . '"';
+                }
+            }
+            return '[term' . $nameAttribute . ']' . $text . '[/term]';
         }, $markdown);
+    }
+
+    // A Docsify Glossary page's list, as the bridge writes it: "**Term**<br>" with the definition on the next line
+    // (a long glossary also has an A–Z letter bar and letter headings).
+    // Returns ['entries' => [['term', 'definition'] …], 'body' => the text with the list replaced by [glossary]].
+    // No entries: an empty list and the text as it was.
+    public static function listToEntries(string $body): array
+    {
+        $lines = explode("\n", $body);
+        $entries = [];
+        $first = null; // where the list starts: its letter bar, first letter heading or first term
+        $last = null;  // its last definition
+        for ($i = 0; $i < count($lines); $i++) {
+            $line = $lines[$i];
+            $isLetterBar = substr_count($line, '|') === 25; // A|B|C … Z
+            $isLetterHeading = preg_match('/^<h2 id="[a-z]">[A-Z]<\/h2>$/', $line) === 1;
+            $isTerm = preg_match('/^\*\*(.+)\*\*<br>$/', $line, $found) === 1;
+            if ($first === null && ($isLetterBar || $isLetterHeading || $isTerm)) {
+                $first = $i;
+            }
+            if ($isTerm && isset($lines[$i + 1])) {
+                $entries[] = ['term' => $found[1], 'definition' => $lines[$i + 1]];
+                $last = $i + 1;
+                $i++; // skip the definition line
+            }
+        }
+        if (count($entries) === 0) {
+            return ['entries' => [], 'body' => $body];
+        }
+        // the text before the list, then one blank line, then [glossary] and anything after the list
+        $before = rtrim(implode("\n", array_slice($lines, 0, $first)));
+        $after = implode("\n", array_slice($lines, $last + 1));
+        $newBody = ($before !== '' ? $before . "\n\n" : '') . '[glossary]' . $after;
+        return ['entries' => $entries, 'body' => rtrim($newBody)];
+    }
+
+    // Each definition as a link's title (as termsToLinks writes it) => its term, to find a term from its link
+    public static function termsByDefinition(array $entries): array
+    {
+        $terms = [];
+        foreach ($entries as $entry) {
+            $terms[self::plainText($entry['definition'])] = $entry['term'];
+        }
+        return $terms;
     }
 
     // A definition as plain text for a link's title, as Grav shows it: code keeps its text as it is, other Markdown
