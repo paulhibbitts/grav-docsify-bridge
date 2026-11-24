@@ -30,6 +30,8 @@ class DocsifyWriter
     private array $siteMenuLinks = [];
     // kept links to a page's Markdown version, by Docsify file (see recordKeptLinks)
     private array $keptLinks = [];
+    // the site title at the start of each guide's navbar, on a site with several guides
+    private string $siteTitle = '';
     // the guide being written: its glossary (lowercase term => definition) and its Glossary page's Docsify file
     private array $glossary = [];
     private string $glossaryFile = '';
@@ -44,6 +46,14 @@ class DocsifyWriter
         $this->siteUrl = $siteUrl;
         $this->warnings = [];
         $this->siteMenuLinks = [];
+        // the site's name when known (from a Docsify site), or else the Guides page's title
+        $this->siteTitle = $site->name;
+        if ($this->siteTitle === '' && $site->guidesPage !== null) {
+            $this->siteTitle = $site->guidesPage->setting('title');
+        }
+        if ($this->siteTitle === '') {
+            $this->siteTitle = 'Guides';
+        }
 
         $guides = $site->guides;
         if ($single) {
@@ -122,7 +132,9 @@ class DocsifyWriter
             // stays, but empty – Docsify-This then hides the navbar (even a comment in it would show an empty bar)
             $this->siteMenuLinks = [];
         } else {
-            $navbar = array_merge(['- [All Guides](home.md)'], $menuLinks);
+            // the site title links to the Guides page (Docsify-This shows it at the top of pages without a sidebar,
+            // and on phones), then the guide's own menu pages
+            $navbar = array_merge(['- [' . $this->siteTitle . '](home.md ":class=site-title")'], $menuLinks);
             $this->writeFile($guideSlug . '/_navbar.md', implode("\n", $navbar));
         }
         return $this->guideCard($guide);
