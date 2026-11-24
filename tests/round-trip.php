@@ -65,6 +65,21 @@ if (!str_contains($guidesPage, '](open-education-essentials/README.md)')) {
 }
 $failed += report('Links from pages in folders start with /, and kept links stay as they are', $differences);
 
+// 1b3. Glossary terms in the Docsify version: a link to the Glossary page with the definition as its title (Markdown
+//      marks gone, code kept, " as &quot;); a term in other words keeps its name; a term not in the glossary stays text
+$differences = [];
+$markdownTerm = '[Markdown](/glossary.md "A simple text format for web pages – **bold**, ## Heading – with &quot;plain&quot; text you control.")';
+if (!str_contains($page, $markdownTerm)) {
+    $differences[] = 'the Markdown term isn\'t a glossary link with its definition';
+}
+if (!str_contains($page, '<!-- grav: [term name="OER"] -->[open resources](/glossary.md "Open Educational Resources: free to use and openly licensed.")')) {
+    $differences[] = 'the term in other words isn\'t a glossary link that keeps its name';
+}
+if (!str_contains($page, '<!-- grav: [term] -->a term not in the glossary<!-- grav: [/term] -->')) {
+    $differences[] = 'the term not in the glossary was changed';
+}
+$failed += report('Glossary terms link to the Glossary page, with their definitions', $differences);
+
 // 1c. The same guides with the newer page names (guide.md for each guide, guide-list.md for the Guides page):
 //     they come back with those names
 copyFolder("$work/guides", "$work/renamed");

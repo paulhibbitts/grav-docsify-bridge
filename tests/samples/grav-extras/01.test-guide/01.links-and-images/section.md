@@ -8,6 +8,8 @@ See this page [as Markdown](/test-guide/links-and-images.md?target=_blank), or [
 
 Back to [the guide's home](/test-guide).
 
+Glossary terms: [term]Markdown[/term], [term name="OER"]open resources[/term] and [term]a term not in the glossary[/term].
+
 ![A wide banner](banner.jpg?cropZoom=1200,300)
 
 ![A tall banner](banner.jpg?cropZoom=1200,420)

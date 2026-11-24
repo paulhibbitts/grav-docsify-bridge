@@ -30,6 +30,9 @@ class DocsifyWriter
     private array $siteMenuLinks = [];
     // kept links to a page's Markdown version, by Docsify file (see recordKeptLinks)
     private array $keptLinks = [];
+    // the guide being written: its glossary (lowercase term => definition) and its Glossary page's Docsify file
+    private array $glossary = [];
+    private string $glossaryFile = '';
 
     // $single: a single-guide site (the guide home is home.md, sections are top-level folders, no Guides page)
     // $siteUrl: the original Grav site's address, for links to its other pages (optional)
@@ -78,6 +81,7 @@ class DocsifyWriter
             $top = '';
             $homeFile = 'home.md';
         }
+        $this->findGlossary($guide, $top);
 
         // every reading page links back to its guide home, except in a single guide, where the site's name
         // (at the top of the sidebar) is the guide's name and already links home
@@ -613,6 +617,21 @@ class DocsifyWriter
         return [$body, array_merge($list, count($foot) > 0 ? [''] : [], $foot)];
     }
 
+    // The guide's Glossary page: its first menu page with glossary: in its settings. Its terms link to it.
+    private function findGlossary(Page $guide, string $top): void
+    {
+        $this->glossary = [];
+        $this->glossaryFile = '';
+        foreach ($guide->menuPages as $page) {
+            $entries = Glossary::entries($page);
+            if (count($entries) > 0) {
+                $this->glossary = $entries;
+                $this->glossaryFile = $top . $page->slug() . '.md';
+                return;
+            }
+        }
+    }
+
     // Grav Markdown → Docsify Markdown: callouts, links between guide pages, then links that only work in Grav.
     // $gravPath: the page's address on the Grav site; $where: the Docsify file, for warnings
     private function convert(string $markdown, string $gravPath, string $where): string
@@ -626,6 +645,10 @@ class DocsifyWriter
         $this->recordKeptLinks($where, $markdown);
         $inFolder = str_contains($where, '/');
         $markdown = Links::toDocsify($markdown, $this->guideSlugs, $this->single, $inFolder);
+        if ($this->glossaryFile !== '') {
+            $glossaryLink = Helpers::fromFolder($this->glossaryFile, $inFolder);
+            $markdown = Glossary::termsToLinks($markdown, $this->glossary, $glossaryLink);
+        }
         foreach (Callouts::unknownShortcodes($markdown) as $name) {
             $this->warnings[] = $where . ': the [' . $name . '] shortcode only works in Grav (left as it is)';
         }

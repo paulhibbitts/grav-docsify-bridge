@@ -268,6 +268,8 @@ class Callouts
     // Open Publishing Space themes also show.
     public static function toGrav(string $markdown): string
     {
+        // glossary links first, before their hidden notes become shortcodes below
+        $markdown = Glossary::linksToTerms($markdown);
         $markdown = preg_replace_callback(
             '/<!-- grav: \[showifembedded\]\n(.*?)\n\[\/showifembedded\] -->/s',
             [self::class, 'showEmbeddedContent'],
