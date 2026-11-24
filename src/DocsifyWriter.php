@@ -613,7 +613,8 @@ class DocsifyWriter
                 $list[] = '';
                 $letters[] = $letter;
             }
-            $list[] = '**' . $entry['term'] . '**<br>';
+            // an anchor named as in Grav (glossary-pressbooks), so a term's link can open at its entry
+            $list[] = '<a id="' . Glossary::anchor($entry['term']) . '"></a>**' . $entry['term'] . '**<br>';
             $list[] = $entry['definition'];
             $list[] = '';
         }

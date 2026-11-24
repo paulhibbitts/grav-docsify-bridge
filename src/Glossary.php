@@ -2,8 +2,8 @@
 namespace OPG;
 
 // Glossary terms. In Grav: [term]Pressbooks[/term], or [term name="Pressbooks"]the platform[/term].
-// In Docsify: a link to the guide's Glossary page, with the definition as its title, so it works with a keyboard,
-// a screen reader and on phones: [Pressbooks](/guide/glossary.md "A book publishing platform …")
+// In Docsify: a link to the term's entry on the guide's Glossary page, with the definition as its title, so it works
+// with a keyboard, a screen reader and on phones: [Pressbooks](/guide/glossary.md?id=glossary-pressbooks "A book …")
 class Glossary
 {
     // A Glossary page's terms, from its glossary: settings. Returns lowercase term => definition.
@@ -32,7 +32,7 @@ class Glossary
             if (!isset($glossary[$key])) {
                 return $match[0];
             }
-            $link = '[' . $text . '](' . $glossaryLink . ' "' . self::plainText($glossary[$key]) . '")';
+            $link = '[' . $text . '](' . $glossaryLink . '?id=' . self::anchor($key) . ' "' . self::plainText($glossary[$key]) . '")';
             // a term shown in other words keeps its name in a hidden note, for the way back
             if ($nameAttribute !== '') {
                 $link = '<!-- grav: [term' . $nameAttribute . '] -->' . $link;
@@ -47,7 +47,7 @@ class Glossary
     // other words, such as "shortcodes" for Shortcode, when no hidden note kept its name
     public static function linksToTerms(string $markdown, array $termsByDefinition = []): string
     {
-        $pattern = '/(?:<!-- grav: \[term( name="[^"]*")\] -->)?\[([^\]]+)\]\([^)\s]*glossary\.md "([^"]*)"\)/';
+        $pattern = '/(?:<!-- grav: \[term( name="[^"]*")\] -->)?\[([^\]]+)\]\([^)\s]*glossary\.md(?:\?id=[^)\s]*)? "([^"]*)"\)/';
         return preg_replace_callback($pattern, function ($match) use ($termsByDefinition) {
             $nameAttribute = $match[1];
             $text = $match[2];
@@ -77,7 +77,7 @@ class Glossary
             $line = $lines[$i];
             $isLetterBar = substr_count($line, '|') === 25; // A|B|C … Z
             $isLetterHeading = preg_match('/^<h2 id="[a-z]">[A-Z]<\/h2>$/', $line) === 1;
-            $isTerm = preg_match('/^\*\*(.+)\*\*<br>$/', $line, $found) === 1;
+            $isTerm = preg_match('/^(?:<a id="[^"]*"><\/a>)?\*\*(.+)\*\*<br>$/', $line, $found) === 1;
             if ($first === null && ($isLetterBar || $isLetterHeading || $isTerm)) {
                 $first = $i;
             }
@@ -95,6 +95,14 @@ class Glossary
         $after = implode("\n", array_slice($lines, $last + 1));
         $newBody = ($before !== '' ? $before . "\n\n" : '') . '[glossary]' . $after;
         return ['entries' => $entries, 'body' => rtrim($newBody)];
+    }
+
+    // A glossary entry's anchor, as Grav names it: "Open Resources" → glossary-open-resources (a term with no
+    // Latin letters or digits gets a short hash)
+    public static function anchor(string $term): string
+    {
+        $slug = trim(preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($term)), '-');
+        return 'glossary-' . ($slug !== '' ? $slug : substr(md5($term), 0, 8));
     }
 
     // Each definition as a link's title (as termsToLinks writes it) => its term, to find a term from its link
