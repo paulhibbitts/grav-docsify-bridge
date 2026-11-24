@@ -751,8 +751,8 @@ class CourseDocsifyWriter
         return 'images/' . $name;
     }
 
-    // In a site of several courses, links to the course's pages start at the site's top: (module-01.md) →
-    // (cpt363-basic/module-01.md). Images stay as they are (Docsify reads them from the page's own folder).
+    // In a site of several courses, links to the course's pages start from the site's top, with a / for GitHub:
+    // (module-01.md) → (/cpt363-basic/module-01.md). Images stay as they are.
     private function withTop(string $text): string
     {
         $files = array_unique(array_merge(array_values($this->addresses), ['contact.md']));
@@ -760,7 +760,7 @@ class CourseDocsifyWriter
             if (!in_array($match[1], $files, true)) {
                 return $match[0];
             }
-            return '](' . $this->top . $match[1];
+            return '](' . Helpers::fromFolder($this->top . $match[1], true);
         }, $text);
     }
 

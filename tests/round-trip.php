@@ -45,6 +45,26 @@ convert('grav2docsify', "$samples/grav-extras", "$work/extras-docsify", 'single'
 convert('docsify2grav', "$work/extras-docsify", "$work/extras-back");
 $failed += report('Grav test guide comes back identical', sameFiles("$samples/grav-extras", "$work/extras-back"));
 
+// 1b2. In the Docsify version, a page in a folder links to other pages with a / (so the link also works on GitHub),
+//      keeps its link to a page's Markdown version as it is, and lists that link in its hidden note
+$page = (string)file_get_contents("$work/extras-docsify/links-and-images/README.md");
+$differences = [];
+if (!str_contains($page, "[the guide's home](/home.md)")) {
+    $differences[] = 'the link to the guide home doesn\'t start with /';
+}
+if (!str_contains($page, '[as Markdown](/test-guide/links-and-images.md')) {
+    $differences[] = 'the link to the page\'s Markdown version was changed';
+}
+if (!str_contains($page, '"kept":["/test-guide/links-and-images.md"]')) {
+    $differences[] = 'the hidden note doesn\'t list the kept link';
+}
+// a page at the site's top keeps its links without a /
+$guidesPage = (string)file_get_contents("$work/guides-docsify/home.md");
+if (!str_contains($guidesPage, '](open-education-essentials/README.md)')) {
+    $differences[] = 'a link on the Guides page starts with /';
+}
+$failed += report('Links from pages in folders start with /, and kept links stay as they are', $differences);
+
 // 1c. The same guides with the newer page names (guide.md for each guide, guide-list.md for the Guides page):
 //     they come back with those names
 copyFolder("$work/guides", "$work/renamed");

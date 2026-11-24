@@ -1120,6 +1120,10 @@ class CourseDocsifyReader
         }
         $text = (string)file_get_contents($path);
         if ($this->top !== '') {
+            // links to the course's own pages, which are flat files: (/cpt363-basic/module-01.md) → (module-01.md).
+            // A longer path, such as a kept link to a page's Markdown version, stays as it is.
+            $text = preg_replace('#\]\(/' . preg_quote($this->top, '#') . '([A-Za-z0-9_-]+\.md)#', '](\1', $text);
+            // written before: (cpt363-basic/module-01.md)
             $text = str_replace('](' . $this->top, '](', $text);
         }
         return $text;

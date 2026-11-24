@@ -63,7 +63,8 @@ class DocsifyReader
             if (is_array($settings)) {
                 $page->meta = $settings;
             }
-            $page->body = $this->authorText($page->kind, $note['rest']);
+            $keptLinks = $note['where']['kept'] ?? null;
+            $page->body = $this->authorText($page->kind, $note['rest'], $keptLinks);
             $this->updateVisibleSettings($page, $note['rest']);
 
             $images = [];
@@ -128,7 +129,7 @@ class DocsifyReader
     }
 
     // The author's text: everything the converter didn't add, with callouts and links back in Grav's form
-    private function authorText(string $kind, string $rest): string
+    private function authorText(string $kind, string $rest, ?array $keptLinks = null): string
     {
         // the parts between the converter's generated blocks
         $parts = preg_split('/<!-- grav:gen -->\n.*?\n<!-- \/grav:gen -->/s', $rest);
@@ -161,7 +162,7 @@ class DocsifyReader
         $text = Helpers::hideCode($text, $codeParts);
         $text = Callouts::toGrav($text);
         $text = Embeds::toGrav($text);
-        $text = Links::toGrav($text, $this->singleGuide, $this->siteUrl, true);
+        $text = Links::toGrav($text, $this->singleGuide, $this->siteUrl, true, $keptLinks);
         $text = Links::newTabToGrav($text);
         return Helpers::showCode($text, $codeParts);
     }

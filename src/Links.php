@@ -9,12 +9,13 @@ class Links
 
     // $guideSlugs: every guide being written, so links between guides are converted too
     // $single: a single-guide site, whose sections are top-level folders and whose guide home is home.md
-    public static function toDocsify(string $markdown, array $guideSlugs, bool $single): string
+    // $inFolder: the page is in a folder, so its links start with /
+    public static function toDocsify(string $markdown, array $guideSlugs, bool $single, bool $inFolder = false): string
     {
         // ](/path) or ](/path#heading), maybe followed by a "title" or an option such as ':target=_blank'
         // (not //example.org, an address without https:)
         $pattern = '/\]\((\/(?!\/)[^)\s#?]*)(#[^)\s?]*)?( "[^"]*"| \'[^\']*\')?\)/';
-        return preg_replace_callback($pattern, function ($match) use ($guideSlugs, $single) {
+        return preg_replace_callback($pattern, function ($match) use ($guideSlugs, $single, $inFolder) {
             $anchor = '';
             if (isset($match[2])) {
                 $anchor = $match[2];
@@ -28,8 +29,16 @@ class Links
                 // not a guide page (the blog, an About page …): see gravOnly()
                 return $match[0];
             }
-            return '](' . $docsifyPath . $option . ')';
+            return '](' . Helpers::fromFolder($docsifyPath, $inFolder) . $option . ')';
         }, $markdown);
+    }
+
+    // Links to a page's Markdown version, a Grav feature
+    // Example: 'See [this page](/guide/intro.md)' → ['/guide/intro.md']
+    public static function markdownVersionLinks(string $markdown): array
+    {
+        preg_match_all('/\]\((\/(?!\/)[^)\s#?]*\.md)(#[^)\s?]*)?/', $markdown, $found);
+        return array_values(array_unique($found[1]));
     }
 
     // '/guide/section/page' + '#heading' → 'guide/section/page.md?id=heading' ('' when it isn't a guide page)
@@ -110,7 +119,8 @@ class Links
         // ](page) or ](page.md?id=heading), maybe with a "title" or ':option'
         $pattern = '/\]\(((?:\.\/)?[A-Za-z0-9_\/-]+(?:\.[A-Za-z0-9_-]+)*?)(\.md)?(\?id=[^)\s]*)?( "[^"]*"| \'[^\']*\')?\)/';
         return preg_replace_callback($pattern, function ($match) use ($addresses, &$originals) {
-            $file = preg_replace('/^\.\//', '', $match[1]) . '.md';
+            // a link may start with ./ or, from a page in a folder, with /
+            $file = ltrim(preg_replace('/^\.\//', '', $match[1]), '/') . '.md';
             if (!isset($addresses[$file])) {
                 return $match[0];
             }
@@ -193,16 +203,21 @@ class Links
     // guide/section/page.md?id=heading → /guide/section/page#heading, guide/README.md → /guide,
     // home.md → / (or, in a single guide, the guide's address). Links to the original site go back to Grav's own
     // form (/about). $singleGuide: the single guide's address name, or '' for a site with a Guides page.
-    // $keepSiteLinks: in a site this converter made, a link starting with / (such as /guide/page.md, a page's
-    // Markdown version) is one it kept for the Grav site, so it's left as it is.
-    public static function toGrav(string $markdown, string $singleGuide, string $siteUrl, bool $keepSiteLinks = false): string
+    // $keepSiteLinks: in a site this converter made, a link starting with / may be one it kept for the Grav site
+    // (such as /guide/page.md, a page's Markdown version), left as it is.
+    // $keptLinks: the page's noted kept links (see DocsifyWriter::withKeptLinks); null for a site made before them,
+    // where every / link was a kept one
+    public static function toGrav(string $markdown, string $singleGuide, string $siteUrl, bool $keepSiteLinks = false, ?array $keptLinks = null): string
     {
         // ](some/file.md) or ](some/file.md?id=heading) – a relative link to a Docsify page – maybe followed by a
         // "title" or an option such as ':target=_blank' (see newTabToGrav)
         $pattern = '/\]\(([A-Za-z0-9._\/-]+\.md)(\?id=[^)\s]*)?( "[^"]*"| \'[^\']*\')?\)/';
-        $markdown = preg_replace_callback($pattern, function ($match) use ($singleGuide, $keepSiteLinks) {
+        $markdown = preg_replace_callback($pattern, function ($match) use ($singleGuide, $keepSiteLinks, $keptLinks) {
             if ($keepSiteLinks && str_starts_with($match[1], '/')) {
-                return $match[0];
+                $isKept = $keptLinks === null || in_array($match[1], $keptLinks, true);
+                if ($isKept) {
+                    return $match[0];
+                }
             }
             $anchor = '';
             if (isset($match[2]) && $match[2] !== '') {

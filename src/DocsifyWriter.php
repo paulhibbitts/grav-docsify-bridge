@@ -28,6 +28,8 @@ class DocsifyWriter
     private array $guideSlugs = [];
     // a single guide's menu pages (Topics, Resources …), linked from the site's navbar
     private array $siteMenuLinks = [];
+    // kept links to a page's Markdown version, by Docsify file (see recordKeptLinks)
+    private array $keptLinks = [];
 
     // $single: a single-guide site (the guide home is home.md, sections are top-level folders, no Guides page)
     // $siteUrl: the original Grav site's address, for links to its other pages (optional)
@@ -187,7 +189,8 @@ class DocsifyWriter
         if ($start !== null) {
             $head[] = '';
             foreach ($section->children as $page) {
-                $head[] = '- [' . $page->title() . '](' . $sectionFolder . '/' . $page->slug() . '.md)';
+                $pageLink = Helpers::fromFolder($sectionFolder . '/' . $page->slug() . '.md', true);
+                $head[] = '- [' . $page->title() . '](' . $pageLink . ')';
             }
         }
         $gravPath = '/' . $guideSlug . '/' . $section->slug();
@@ -620,7 +623,9 @@ class DocsifyWriter
         $markdown = Embeds::toDocsify($markdown);
         $markdown = Callouts::toDocsify($markdown);
         $markdown = Links::newTabToDocsify($markdown);
-        $markdown = Links::toDocsify($markdown, $this->guideSlugs, $this->single);
+        $this->recordKeptLinks($where, $markdown);
+        $inFolder = str_contains($where, '/');
+        $markdown = Links::toDocsify($markdown, $this->guideSlugs, $this->single, $inFolder);
         foreach (Callouts::unknownShortcodes($markdown) as $name) {
             $this->warnings[] = $where . ': the [' . $name . '] shortcode only works in Grav (left as it is)';
         }
@@ -661,10 +666,50 @@ class DocsifyWriter
 
     private function writeFile(string $path, string $text): void
     {
+        $text = $this->withKeptLinks($path, $text);
         $target = $this->out . '/' . $path;
         if (!is_dir(dirname($target))) {
             mkdir(dirname($target), 0700, true);
         }
         file_put_contents($target, rtrim($text) . "\n");
+    }
+
+    // Notes the page's links to a Markdown version (/guide/page.md), kept as they are when there's no site address,
+    // so the way back doesn't read them as links between pages
+    private function recordKeptLinks(string $where, string $markdown): void
+    {
+        if ($this->siteUrl !== '') {
+            return; // with a site address they become full links to it
+        }
+        foreach (Links::markdownVersionLinks($markdown) as $link) {
+            if (!in_array($link, $this->keptLinks[$where] ?? [], true)) {
+                $this->keptLinks[$where][] = $link;
+            }
+        }
+    }
+
+    // Adds the page's kept links to its hidden note: {"file":"…"} → {"file":"…","kept":["/guide/intro.md"]}
+    // A page in a folder always gets the list (maybe empty): it tells the way back that the page's / links are
+    // links between pages. Done as the file is saved, as some notes are written before the text is converted.
+    private function withKeptLinks(string $path, string $text): string
+    {
+        $start = '<!-- grav: ';
+        $inFolder = str_contains($path, '/');
+        if (!str_starts_with($text, $start) || (!$inFolder && !isset($this->keptLinks[$path]))) {
+            return $text;
+        }
+        // the note's first line is its JSON
+        $lineEnd = strpos($text, "\n");
+        if ($lineEnd === false) {
+            return $text;
+        }
+        $note = json_decode(substr($text, strlen($start), $lineEnd - strlen($start)), true);
+        if (!is_array($note)) {
+            return $text;
+        }
+        $note['kept'] = $this->keptLinks[$path] ?? [];
+        // as in Helpers::gravNote, --> is written as --\u003e so it can't end the comment
+        $json = str_replace('-->', '--\\u003e', json_encode($note, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        return $start . $json . substr($text, $lineEnd);
     }
 }
