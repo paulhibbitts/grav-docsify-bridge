@@ -656,15 +656,18 @@ class DocsifyWriter
         $markdown = Links::newTabToDocsify($markdown);
         $this->recordKeptLinks($where, $markdown);
         $inFolder = str_contains($where, '/');
-        $markdown = Links::toDocsify($markdown, $this->guideSlugs, $this->single, $inFolder);
+        // the Docsify files that links now go to, which gravOnly() then leaves alone
+        $converted = [];
+        $markdown = Links::toDocsify($markdown, $this->guideSlugs, $this->single, $inFolder, $converted);
         if ($this->glossaryFile !== '') {
             $glossaryLink = Helpers::fromFolder($this->glossaryFile, $inFolder);
             $markdown = Glossary::termsToLinks($markdown, $this->glossary, $glossaryLink);
+            $converted[] = $glossaryLink;
         }
         foreach (Callouts::unknownShortcodes($markdown) as $name) {
             $this->warnings[] = $where . ': the [' . $name . '] shortcode only works in Grav (left as it is)';
         }
-        $markdown = Links::gravOnly($markdown, $gravPath, $this->siteUrl, $where, $this->warnings);
+        $markdown = Links::gravOnly($markdown, $gravPath, $this->siteUrl, $where, $this->warnings, converted: $converted);
         return Helpers::showCode($markdown, $codeParts);
     }
 

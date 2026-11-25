@@ -55,6 +55,23 @@ foreach (filesIn("$work/guides-docsify/open-education-essentials") as $file) {
 }
 $failed += report('A guide\'s name in its sidebar links home, and its reading pages have no back link', $differences);
 
+// 1a3. With the original site's address, links between converted pages stay Docsify links (only links that work
+//      in Grav alone become full links to the site)
+convert('grav2docsify', "$samples/grav-extras", "$work/guides-site", 'single site=https://example.org');
+$differences = [];
+foreach (filesIn("$work/guides-site") as $file) {
+    if (!str_ends_with($file, '.md')) {
+        continue;
+    }
+    preg_match_all('/\]\(https:\/\/example\.org\/([^)\s?#]+)/', (string)file_get_contents("$work/guides-site/$file"), $found);
+    foreach ($found[1] as $path) {
+        if (is_file("$work/guides-site/$path")) {
+            $differences[] = "$file links to the converted page $path on the Grav site";
+        }
+    }
+}
+$failed += report('Links between converted pages stay Docsify links when the site\'s address is given', $differences);
+
 // 1b. A tiny guide with cases that once came back changed: the same files as the original
 convert('grav2docsify', "$samples/grav-extras", "$work/extras-docsify", 'single');
 convert('docsify2grav', "$work/extras-docsify", "$work/extras-back");

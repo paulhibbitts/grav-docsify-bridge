@@ -10,12 +10,14 @@ class Links
     // $guideSlugs: every guide being written, so links between guides are converted too
     // $single: a single-guide site, whose sections are top-level folders and whose guide home is home.md
     // $inFolder: the page is in a folder, so its links start with /
-    public static function toDocsify(string $markdown, array $guideSlugs, bool $single, bool $inFolder = false): string
+    // $converted: each Docsify file a link now goes to is added, so gravOnly() leaves those links alone (from a page
+    // in a folder they start with /, like the links that only work in Grav)
+    public static function toDocsify(string $markdown, array $guideSlugs, bool $single, bool $inFolder = false, array &$converted = []): string
     {
         // ](/path) or ](/path#heading), maybe followed by a "title" or an option such as ':target=_blank'
         // (not //example.org, an address without https:)
         $pattern = '/\]\((\/(?!\/)[^)\s#?]*)(#[^)\s?]*)?( "[^"]*"| \'[^\']*\')?\)/';
-        return preg_replace_callback($pattern, function ($match) use ($guideSlugs, $single, $inFolder) {
+        return preg_replace_callback($pattern, function ($match) use ($guideSlugs, $single, $inFolder, &$converted) {
             $anchor = '';
             if (isset($match[2])) {
                 $anchor = $match[2];
@@ -29,7 +31,9 @@ class Links
                 // not a guide page (the blog, an About page …): see gravOnly()
                 return $match[0];
             }
-            return '](' . Helpers::fromFolder($docsifyPath, $inFolder) . $option . ')';
+            $address = Helpers::fromFolder($docsifyPath, $inFolder);
+            $converted[] = strtok($address, '?');
+            return '](' . $address . $option . ')';
         }, $markdown);
     }
 
@@ -145,13 +149,18 @@ class Links
     // links to it; without one they're left as they are and listed in $warnings.
     // $pagePath: the page's own address on the Grav site, e.g. /open-education-essentials (relative links start there)
     // $originals: when given, each relative link made full is added as [full link, relative link], so it can go back
-    public static function gravOnly(string $markdown, string $pagePath, string $siteUrl, string $where, array &$warnings, ?array &$originals = null): string
+    // $converted: Docsify files that links already go to (see toDocsify), which are left as they are
+    public static function gravOnly(string $markdown, string $pagePath, string $siteUrl, string $where, array &$warnings, ?array &$originals = null, array $converted = []): string
     {
         $siteUrl = rtrim($siteUrl, '/');
         // [text](/path…), [text](../path…) and [text](./path…), images included, maybe followed by a "title" or an
         // option such as ':target=_blank' (not //example.org, an address without https:)
         $pattern = '/(!?)\[([^\]]*)\]\(((?:\/(?!\/)|\.\.?\/)[^)\s]*)( "[^"]*"| \'[^\']*\')?\)/';
-        return preg_replace_callback($pattern, function ($match) use ($pagePath, $siteUrl, $where, &$warnings, &$originals) {
+        return preg_replace_callback($pattern, function ($match) use ($pagePath, $siteUrl, $where, &$warnings, &$originals, $converted) {
+            // a link that already goes to a converted Docsify page (with or without ?id=…) works as it is
+            if (in_array(strtok($match[3], '?'), $converted, true)) {
+                return $match[0];
+            }
             $url = $match[3];
             $option = '';
             if (isset($match[4])) {
