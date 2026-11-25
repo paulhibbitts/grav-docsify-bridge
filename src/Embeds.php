@@ -50,6 +50,9 @@ class Embeds
             '/\[button((?: [^\]]*)?)\s*\/\]/' => 'button',
             '/\[h5p((?: [^\]]*)?)\s*\/\]/' => 'h5p',
             '/\[h5p((?: [^\]]*)?)\](.*?)\[\/h5p\]/' => 'h5p',
+            // [h5p url="…"] with no closing tag, as the Pressbooks Converter writes it. Not one that ends in /],
+            // has a [/h5p] later on its line, or is in the hidden note of one already converted above
+            '/(?<!' . self::NOTE . ': )\[h5p((?: [^\]]*)?)(?<!\/)\](?![^\n]*\[\/h5p\])/' => 'h5p',
             '/!\[([^\]]*)\]\(([^)\s?]+\?cropZoom=[0-9]+,[0-9]+)\)/' => 'banner',
         ];
         foreach ($patterns as $pattern => $kind) {
