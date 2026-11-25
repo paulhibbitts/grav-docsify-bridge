@@ -93,11 +93,9 @@ class DocsifyWriter
         }
         $this->findGlossary($guide, $top);
 
-        // every reading page links back to its guide home, except in a single guide, where the site's name
-        // (at the top of the sidebar) is the guide's name and already links home
-        $backLink = [];
+        // reading pages have no back link: the guide's name at the top of the sidebar links to its home (in a single
+        // guide, the site's name does), as Docsify always shows the sidebar beside them (see writeSidebar)
         if (!$this->single) {
-            $backLink = ['[← ' . $guide->title() . '](' . Helpers::fromFolder($homeFile, true) . ')', ''];
             $this->copyImages($guide, $guideSlug);
         } else {
             // a single guide's own folder only holds its cover, shown on its home page (home.md, at the top)
@@ -115,7 +113,7 @@ class DocsifyWriter
             $label = self::sectionLabel($guide, $section, $number);
             $start = self::redirectPage($section);
             $sections[] = ['page' => $section, 'label' => $label, 'start' => $start];
-            $this->writeSection($section, $guideSlug, $top, $label, $backLink, $start);
+            $this->writeSection($section, $guideSlug, $top, $label, $start);
         }
 
         $menuLinks = $this->writeMenuPages($guide, $top, $homeFile);
@@ -180,7 +178,7 @@ class DocsifyWriter
 
     // A section's page (its title, section label, Learning Objectives and text), then each of its pages. A section
     // that redirects to one of its pages lists its pages instead, in case someone opens it.
-    private function writeSection(Page $section, string $guideSlug, string $top, string $label, array $backLink, ?Page $start): void
+    private function writeSection(Page $section, string $guideSlug, string $top, string $label, ?Page $start): void
     {
         $sectionFolder = $top . $section->slug();
         $this->copyImages($section, $sectionFolder);
@@ -190,7 +188,7 @@ class DocsifyWriter
         }
 
         $sectionFile = $sectionFolder . '/README.md';
-        $head = array_merge($backLink, ['# ' . $section->title()]);
+        $head = ['# ' . $section->title()];
         if ($label !== '') {
             // at full size, as in the Docsify-This templates and the Starter Kits
             $head = array_merge($head, ['', $label]);
@@ -215,7 +213,7 @@ class DocsifyWriter
         foreach ($section->children as $page) {
             $pageFile = $sectionFolder . '/' . $page->slug() . '.md';
             $gravPath = '/' . $guideSlug . '/' . $section->slug() . '/' . $page->slug();
-            $head = array_merge($backLink, ['# ' . $page->title()]);
+            $head = ['# ' . $page->title()];
             $body = $this->convert($page->body, $gravPath, $pageFile);
             $this->writePage($pageFile, $page, $head, $body, $this->sideBox($page, $gravPath, $pageFile));
         }
@@ -483,8 +481,9 @@ class DocsifyWriter
     {
         $lines = [];
         if (!$this->single) {
-            // the guide's name first, in bold (not a link, so not a page); a single guide's site name is its name
-            $lines = ['**' . $guide->title() . '**', ''];
+            // the guide's name first, in bold and linked to its home – the way back from any of its pages (not a list
+            // item, so it isn't read as a section). A single guide's site name is its name, and already links home.
+            $lines = ['[**' . $guide->title() . '**](' . $top . 'README.md)', ''];
         }
         foreach ($sections as $item) {
             $section = $item['page'];

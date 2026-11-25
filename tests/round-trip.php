@@ -40,6 +40,21 @@ if (is_dir("$work/guides-off-docsify/sample-guide") || !is_dir("$work/guides-off
 }
 $failed += report('A switched-off guide is left out', $differences);
 
+// 1a2. In a site of several guides, each guide's sidebar starts with its name, linked to its home, and its reading
+//      pages have no back link
+$differences = [];
+$sidebar = (string)file_get_contents("$work/guides-docsify/open-education-essentials/_sidebar.md");
+if (!preg_match('/^\[\*\*[^*]+\*\*\]\(open-education-essentials\/README\.md\)\n/', $sidebar)) {
+    $differences[] = 'the sidebar doesn\'t start with the guide\'s name linked to its home';
+}
+foreach (filesIn("$work/guides-docsify/open-education-essentials") as $file) {
+    $text = (string)file_get_contents("$work/guides-docsify/open-education-essentials/$file");
+    if (str_ends_with($file, '.md') && str_contains($file, '/') && preg_match('/^\[← /m', $text) === 1) {
+        $differences[] = "$file has a back link";
+    }
+}
+$failed += report('A guide\'s name in its sidebar links home, and its reading pages have no back link', $differences);
+
 // 1b. A tiny guide with cases that once came back changed: the same files as the original
 convert('grav2docsify', "$samples/grav-extras", "$work/extras-docsify", 'single');
 convert('docsify2grav', "$work/extras-docsify", "$work/extras-back");
