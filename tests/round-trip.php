@@ -72,6 +72,28 @@ foreach (filesIn("$work/guides-site") as $file) {
 }
 $failed += report('Links between converted pages stay Docsify links when the site\'s address is given', $differences);
 
+// 1a4. A Glossary that's a section of its own (as the Pressbooks Converter makes it) instead of a menu page: terms
+//      link to its entries, and come back to Grav as [term]
+copyFolder("$samples/grav-extras", "$work/section-glossary");
+$guideFolder = "$work/section-glossary/01.test-guide";
+mkdir("$guideFolder/02.glossary");
+$glossaryText = str_replace("menu_order: 1\n", '', (string)file_get_contents("$guideFolder/glossary/default.md"));
+file_put_contents("$guideFolder/02.glossary/section.md", $glossaryText);
+unlink("$guideFolder/glossary/default.md");
+rmdir("$guideFolder/glossary");
+convert('grav2docsify', "$work/section-glossary", "$work/section-glossary-docsify", 'single');
+convert('docsify2grav', "$work/section-glossary-docsify", "$work/section-glossary-back");
+$differences = [];
+$page = (string)file_get_contents("$work/section-glossary-docsify/links-and-images/README.md");
+if (!str_contains($page, '[Markdown](/glossary/README.md?id=glossary-markdown "')) {
+    $differences[] = 'the Markdown term doesn\'t link to its entry in the Glossary section';
+}
+$pageBack = (string)file_get_contents("$work/section-glossary-back/01.test-guide/01.links-and-images/section.md");
+if (!str_contains($pageBack, '[term]Markdown[/term]') || !str_contains($pageBack, '[term name="OER"]open resources[/term]')) {
+    $differences[] = 'the terms didn\'t come back to Grav as [term]';
+}
+$failed += report('A Glossary section\'s terms link to their entries, and come back to Grav', $differences);
+
 // 1b. A tiny guide with cases that once came back changed: the same files as the original
 convert('grav2docsify', "$samples/grav-extras", "$work/extras-docsify", 'single');
 convert('docsify2grav', "$work/extras-docsify", "$work/extras-back");

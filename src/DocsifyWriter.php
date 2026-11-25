@@ -642,6 +642,24 @@ class DocsifyWriter
                 return;
             }
         }
+        // no Glossary menu page: a section or one of its pages may be the Glossary, as in a book from the Pressbooks
+        // Converter (its Glossary is a section of its own)
+        foreach ($guide->children as $section) {
+            $entries = Glossary::entries($section);
+            if (count($entries) > 0) {
+                $this->glossary = $entries;
+                $this->glossaryFile = $top . $section->slug() . '/README.md';
+                return;
+            }
+            foreach ($section->children as $page) {
+                $entries = Glossary::entries($page);
+                if (count($entries) > 0) {
+                    $this->glossary = $entries;
+                    $this->glossaryFile = $top . $section->slug() . '/' . $page->slug() . '.md';
+                    return;
+                }
+            }
+        }
     }
 
     // Grav Markdown → Docsify Markdown: callouts, links between guide pages, then links that only work in Grav.

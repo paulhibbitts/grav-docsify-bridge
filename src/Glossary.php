@@ -41,13 +41,14 @@ class Glossary
         }, $markdown);
     }
 
-    // Docsify → Grav: a link to a Glossary page with a title becomes [term]…[/term] again (the definition comes
-    // from the Glossary page, so the title isn't needed).
+    // Docsify → Grav: a link with a title to a Glossary page (glossary.md), or to an entry on any page that holds the
+    // glossary (such as a book's Glossary section: section-15/README.md?id=glossary-…), becomes [term]…[/term] again
+    // (the definition comes from the Glossary page, so the title isn't needed).
     // $termsByDefinition (definition as a title => term, see termsByDefinition) finds the term for a link shown in
     // other words, such as "shortcodes" for Shortcode, when no hidden note kept its name
     public static function linksToTerms(string $markdown, array $termsByDefinition = []): string
     {
-        $pattern = '/(?:<!-- grav: \[term( name="[^"]*")\] -->)?\[([^\]]+)\]\([^)\s]*glossary\.md(?:\?id=[^)\s]*)? "([^"]*)"\)/';
+        $pattern = '/(?:<!-- grav: \[term( name="[^"]*")\] -->)?\[([^\]]+)\]\([^)\s]*(?:glossary\.md(?:\?id=[^)\s]*)?|\.md\?id=glossary-[^)\s]*) "([^"]*)"\)/';
         return preg_replace_callback($pattern, function ($match) use ($termsByDefinition) {
             $nameAttribute = $match[1];
             $text = $match[2];
