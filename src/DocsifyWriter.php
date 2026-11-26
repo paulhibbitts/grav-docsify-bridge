@@ -71,7 +71,7 @@ class DocsifyWriter
             $cards = array_merge($cards, $card);
         }
         if (!$single) {
-            $this->writeGuidesPage($site->guidesPage, $cards);
+            $this->writeGuidesPage($site->guidesPage, $cards, $guides);
             // a sidebar file with only a comment: Docsify looks for one beside the Guides page (no 404), and shows no sidebar
             $this->writeFile('_sidebar.md', '<!-- No sidebar on the Guides page: each guide folder has its own _sidebar.md -->');
         }
@@ -301,6 +301,14 @@ class DocsifyWriter
         } elseif ($perRow === 2) {
             $listStart = ['<div class="card-list">', ''];
         }
+        // portrait section images are shown whole, as Grav does
+        $images = [];
+        foreach ($sections as $item) {
+            if ($item['page']->setting('image') !== '') {
+                $images[] = $this->pagesDir . '/' . $item['page']->folder . '/' . $item['page']->setting('image');
+            }
+        }
+        $listStart[0] = str_replace('">', Helpers::portraitCardsClass($images) . '">', $listStart[0]);
         $cards = [];
         if ($rows) {
             // cards one under the other don't need to line up, so no empty spaces
@@ -392,9 +400,7 @@ class DocsifyWriter
         $details[] = $startReading;
         // a portrait cover (taller than wide, such as a book cover) is shown whole, as Grav does
         $class = 'guide-cover';
-        $coverFile = $this->pagesDir . '/' . $guide->folder . '/' . $guide->setting('cover_image');
-        $size = is_file($coverFile) ? getimagesize($coverFile) : false;
-        if ($size !== false && $size[1] > $size[0]) {
+        if (Helpers::isPortrait($this->pagesDir . '/' . $guide->folder . '/' . $guide->setting('cover_image'))) {
             $class .= ' guide-cover-portrait';
         }
         return array_merge(['<div class="' . $class . '">', '', $this->coverImage($guide), '', '<div>', ''], $details, ['', '</div>', '', '</div>']);
@@ -526,7 +532,7 @@ class DocsifyWriter
     }
 
     // The Guides page (Grav's Guides List page), with a card for each guide
-    private function writeGuidesPage(?Page $page, array $cards): void
+    private function writeGuidesPage(?Page $page, array $cards, array $guides): void
     {
         if ($page === null) {
             $page = new Page('guides', '00.guides', 'reader-list.md');
@@ -552,6 +558,14 @@ class DocsifyWriter
         if ($page->setting('cards_per_row') === '3') {
             $cardList = 'card-list card-list-guides';
         }
+        // book covers and other portrait covers are shown whole, as Grav does
+        $covers = [];
+        foreach ($guides as $guide) {
+            if ($guide->setting('cover_image') !== '') {
+                $covers[] = $this->pagesDir . '/' . $guide->folder . '/' . $guide->setting('cover_image');
+            }
+        }
+        $cardList .= Helpers::portraitCardsClass($covers);
         $cardLines = array_merge(['<div class="' . $cardList . '">', ''], $cards, ['</div>']);
         $lines = array_merge($lines, Helpers::generated($cardLines), ['']);
         if (trim($textParts['below']) !== '') {

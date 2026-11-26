@@ -266,6 +266,12 @@ class CourseDocsifyWriter
         }
         $listClasses = [1 => 'card-list-rows', 2 => 'card-list', 3 => 'card-list-sections'];
         $listClass = $listClasses[(int)($modulesPage->meta['cards_per_row'] ?? 2)] ?? 'card-list';
+        // portrait module images are shown whole, as Grav does (the images are already copied into images/)
+        $imageFiles = [];
+        foreach (array_filter($images) as $image) {
+            $imageFiles[] = $this->out . '/' . $image;
+        }
+        $listClass .= Helpers::portraitCardsClass($imageFiles);
         $lines = array_merge([self::MODULES_PAGE_MARKER, ''], Helpers::generated(array_merge($head, ['', '<div class="' . $listClass . $this->cardLines . '">', ''], $cards, ['</div>'])));
         $this->writeFile($file, implode("\n", $lines));
     }
@@ -783,7 +789,14 @@ class CourseDocsifyWriter
         $text = Links::newTabToDocsify($text);
         $lines[] = trim(Helpers::showCode($text, $codeParts));
         $lines[] = '';
-        $cards = ['<div class="card-list-courses">', ''];
+        // portrait course images are shown whole, as Grav does (each is already copied into its course's folder)
+        $bannerFiles = [];
+        foreach ($courses as $course) {
+            if (($courseBanners[$course->courseFolder] ?? '') !== '') {
+                $bannerFiles[] = $out . '/' . Helpers::slugFromFolder($course->courseFolder) . '/' . $courseBanners[$course->courseFolder];
+            }
+        }
+        $cards = ['<div class="card-list-courses' . Helpers::portraitCardsClass($bannerFiles) . '">', ''];
         foreach ($courses as $course) {
             $banner = '';
             if (isset($courseBanners[$course->courseFolder])) {

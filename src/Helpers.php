@@ -166,6 +166,29 @@ class Helpers
         ];
     }
 
+    // Whether an image is portrait (taller than wide, such as a book cover). $file: its path on disk
+    public static function isPortrait(string $file): bool
+    {
+        $size = is_file($file) ? getimagesize($file) : false;
+        return $size !== false && $size[1] > $size[0];
+    }
+
+    // ' card-images-portrait' for a card list whose images are all portrait, or '' (no images, or any landscape one).
+    // Grav shows each portrait card image whole instead of cropped; Docsify-This's card-images-portrait does it for a
+    // whole list, so it's only added when it suits every card. $files: the cards' images on disk
+    public static function portraitCardsClass(array $files): string
+    {
+        if (count($files) === 0) {
+            return '';
+        }
+        foreach ($files as $file) {
+            if (!self::isPortrait($file)) {
+                return '';
+            }
+        }
+        return ' card-images-portrait';
+    }
+
     // A card on the Guides or Courses page, as Quark 2 Open Publishing shows them: an image linking to the page (or ''),
     // the title as a link (an <h2>, so cards line up), then lines of text.
     // $linkImage: false for a decorative image (empty alt text, no link), so the card has one link, its title, and a
